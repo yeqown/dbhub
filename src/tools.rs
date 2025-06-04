@@ -1,4 +1,4 @@
-use crate::config::{Config, Database};
+use crate::config::{Config, Database, Template};
 use color_eyre::eyre::Result;
 use shell_words;
 use std::process::Command;
@@ -48,8 +48,8 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
         color_eyre::eyre::eyre!("Command '{}' not found. Use 'dbhub install -t {}' to install it.", command, command)
     })?;
 
-    let args = shell_words::split(&db.dsn)?;
     let mut cmd = Command::new(command);
+    let args = build_cli_command(db, &cfg.templates.get(&db.db_type).unwrap());
     let cli = cmd.args(args);
 
     // print the command and args
@@ -61,11 +61,23 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
     Ok(())
 }
 
-
-/// 解析 Database 实例的 url 字段，根据不同的数据库类型，构建不同的命令行参数
-/// 1. 每种数据库类型的 url 格式不同，配置格式为 config.templates 中的值
-/// 2. 每种数据库类型的命令行参数也不同，需要根据不同的数据库类型，构建不同的命令行参数
-fn build_cli_command(db: &Database) -> String {}
+/// Parse the database connection string and build command line parameters
+/// Example:
+///
+/// Mysql:
+///    dsn: mysql://root:root@localhost:3306/test?parseTime=true
+///    db_type: mysql
+/// Mysql Template:
+///    dsn: mysql://{user}:{password}@{host}:{port}/{database}?{options}
+///    cli: mysql -u {user} -p{password} -h {host} -P {port} {database}
+///
+/// Output:
+///    mysql -u root -proot -h localhost -P 3306 test
+///
+fn build_cli_command(db: &Database, template: &Template) -> Vec<String> {
+    let variables = db.variables(template);
+    vec![variables.get("dsn").take().unwrap().to_string()]
+}
 
 pub fn install_tool(tool: &str) -> Result<()> {
     if which(tool).is_ok() {

@@ -3,7 +3,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tracing::info;
-
 use crate::tools;
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -15,7 +14,7 @@ pub struct Config {
     // e.g. mysql: mysql://{user}:{password}@{host}:{port}/{database}
     pub templates: HashMap<String, Template>,
 
-    // Loaded from config file to help CLI usage. only saved in MEMORY.
+    // Loaded from config file to help CLI usage. Only saved in MEMORY.
     // key: alias, value: Database config instance.
     #[serde(skip)]
     pub aliases: HashMap<String, Database>,
@@ -35,7 +34,7 @@ pub struct Database {
     pub dsn: String,
     pub env: String,
     pub alias: String,
-    // Optional fields
+    // Optionally fields
     // Description of the connection for human-readable.
     pub description: Option<String>,
     // metadata for the connection.
@@ -82,10 +81,10 @@ impl Config {
             color_eyre::eyre::eyre!("No template found for database type: {}", db_type)
         })?;
 
-        // 简单验证：检查必要的组件是否存在
+        // TODO(@yeqown): verify the connection string format with the template.dsn.
         let required_components = vec!["host", "port"];
         for component in required_components {
-            if !template.contains(component) {
+            if !template.dsn.contains(component) {
                 return Err(color_eyre::eyre::eyre!(
                     "Template missing required component: {}",
                     component
@@ -128,6 +127,38 @@ pub fn load_or_create(config_path: &PathBuf) -> Result<Config> {
         }
         std::fs::write(config_path, content)?;
         Ok(config)
+    }
+}
+
+impl Database {
+    // Parse the variables from the connection string. Including
+    // the metadata, and the connection url itself as dsn.
+    pub fn variables(&self, template: &Template) -> HashMap<String, String> {
+        let mut variables = HashMap::new();
+
+        // Parse the connection url and extract the variables.
+        // e.g. mysql://{user}:{password}@{host}:{port}/{database}
+        // return a HashMap of variables.
+        // E.g. { "user": "root", "password": "root", "host": "localhost", "port": "3306", "database": "test" }
+        let vars = crate::template::dynamic_parse_template(&template.dsn, &self.dsn);
+        if let Some(vars) = vars {
+            for (key, value) in vars {
+                variables.insert(key, value);
+            }
+        }
+
+        // Add metadata to the variables, but the key starts with "meta_".
+        if let Some(metadata) = &self.metadata {
+            for (key, value) in metadata {
+                let meta_key = format!("meta_{}", key);
+                variables.insert(meta_key, value.clone());
+            }
+        }
+
+        // Add the connection url itself as dsn.
+        variables.insert("dsn".to_string(), self.dsn.clone());
+
+        variables
     }
 }
 

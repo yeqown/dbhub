@@ -6,6 +6,7 @@ use dirs;
 
 mod config;
 mod tools;
+mod template;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -86,7 +87,7 @@ async fn main() -> Result<()> {
 
     cli.config = Some(abs_config_path.clone());
 
-    // load config from file
+    // load config from a file
     let mut cfg: config::Config = config::load_or_create(&abs_config_path)?;
     info!("Loaded config from: {:?}", &abs_config_path);
 
@@ -101,7 +102,7 @@ async fn main() -> Result<()> {
                 let db = cfg.aliases.get(&alias).ok_or_else(|| {
                     color_eyre::eyre::eyre!("Alias '{}' not found", alias)
                 })?;
-                tools::connect(db)?
+                tools::connect(db, &cfg)?
             } else {
                 return Err(color_eyre::eyre::eyre!("Either alias or both env and db must be specified"));
             }
