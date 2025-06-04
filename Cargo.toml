@@ -1,6 +1,6 @@
 [package]
-name = "db-hub"
-version = "0.1.0"
+name = "dbhub"
+version = "1.0.0"
 edition = "2024"
 
 [dependencies]
@@ -8,9 +8,9 @@ clap = { version = "4.4", features = ["derive"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 tokio = { version = "1.0", features = ["full"] }
-thiserror = "1.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
 shell-words = "1.1.0"
 which = "5.0.0"
 color-eyre = "0.6"
+dirs = "5.0"

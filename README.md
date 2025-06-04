@@ -16,64 +16,64 @@ A command-line tool for managing multiple database connections across different 
 
 ## Installation
 
-Download the appropriate binary for your system from [GitHub Releases](https://github.com/your-username/db-hub/releases):
+Download the appropriate binary for your system from [GitHub Releases](https://github.com/your-username/dbhub/releases):
 
-- Linux: `db-hub-linux-amd64.tar.gz` or `db-hub-linux-arm64.tar.gz`
-- macOS: `db-hub-darwin-amd64.tar.gz` or `db-hub-darwin-arm64.tar.gz`
-- Windows: `db-hub-windows-amd64.exe.zip`
+- Linux: `dbhub-linux-amd64.tar.gz` or `dbhub-linux-arm64.tar.gz`
+- macOS: `dbhub-darwin-amd64.tar.gz` or `dbhub-darwin-arm64.tar.gz`
+- Windows: `dbhub-windows-amd64.exe.zip`
 
 ## Usage
 
 ### Adding a Database Connection
 
 ```bash
-db-hub add -e <environment> -n <database-name> -t <database-type> -u <connection-url> [-a <alias>]
+dbhub add -e <environment> -n <database-name> -t <database-type> -u <connection-url> [-a <alias>]
 
 # Example
-db-hub add -e dev -n myapp -t mysql -u "mysql://user:pass@localhost:3306/myapp" -a dev-db
+dbhub add -e dev -n myapp -t mysql -u "mysql://user:pass@localhost:3306/myapp" -a dev-db
 ```
 
 ### Connecting to a Database
 
 Using environment and database name:
 ```bash
-db-hub connect -e <environment> -d <database-name>
+dbhub connect -e <environment> -d <database-name>
 ```
 
 Or using an alias:
 ```bash
-db-hub connect -a <alias>
+dbhub connect -a <alias>
 ```
 
 ### Listing All Configurations
 
 ```bash
-db-hub list
+dbhub list
 ```
 
 ### Customizing Connection String Templates
 
 ```bash
-db-hub template -t <database-type> -t <template>
+dbhub template -t <database-type> -t <template>
 
 # Example
-db-hub template -t mysql -t "mysql://{user}:{password}@{host}:{port}/{database}?charset=utf8mb4"
+dbhub template -t mysql -t "mysql://{user}:{password}@{host}:{port}/{database}?charset=utf8mb4"
 ```
 
 ### Installing Database Client Tools
 
 ```bash
-db-hub install -t <tool-name>
+dbhub install -t <tool-name>
 
 # Supported tools
-db-hub install -t mycli      # MySQL/Doris client
-db-hub install -t mongosh    # MongoDB/DocumentDB client
-db-hub install -t redis-cli  # Redis client
+dbhub install -t mycli      # MySQL/Doris client
+dbhub install -t mongosh    # MongoDB/DocumentDB client
+dbhub install -t redis-cli  # Redis client
 ```
 
 ## Configuration File
 
-The configuration file is stored at `~/.db-hub/config.yml` with the following format:
+The configuration file is stored at `~/.dbhub/config.yml` with the following format:
 
 ```yaml
 environments:

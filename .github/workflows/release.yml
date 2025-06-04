@@ -1,9 +1,8 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - "v*"
+  release:
+    types: [created]
 
 jobs:
   build:
@@ -14,24 +13,24 @@ jobs:
         include:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
-            artifact_name: db-hub
-            asset_name: db-hub-linux-amd64
+            artifact_name: dbhub
+            asset_name: dbhub-linux-amd64
           - os: ubuntu-latest
             target: aarch64-unknown-linux-gnu
-            artifact_name: db-hub
-            asset_name: db-hub-linux-arm64
+            artifact_name: dbhub
+            asset_name: dbhub-linux-arm64
           - os: macos-latest
             target: x86_64-apple-darwin
-            artifact_name: db-hub
-            asset_name: db-hub-darwin-amd64
+            artifact_name: dbhub
+            asset_name: dbhub-darwin-amd64
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: db-hub
-            asset_name: db-hub-darwin-arm64
+            artifact_name: dbhub
+            asset_name: dbhub-darwin-arm64
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            artifact_name: db-hub.exe
-            asset_name: db-hub-windows-amd64.exe
+            artifact_name: dbhub.exe
+            asset_name: dbhub-windows-amd64.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -49,13 +48,13 @@ jobs:
 
       - name: Build
         run: |
-          cd db-hub
+          cd dbhub
           cargo build --release --target ${{ matrix.target }}
 
       - name: Prepare artifact
         shell: bash
         run: |
-          cd db-hub/target/${{ matrix.target }}/release/
+          cd dbhub/target/${{ matrix.target }}/release/
           if [ "${{ runner.os }}" = "Windows" ]; then
             7z a ../../../${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
           else
@@ -66,6 +65,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            db-hub/${{ matrix.asset_name }}.*
+            dbhub/${{ matrix.asset_name }}.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
