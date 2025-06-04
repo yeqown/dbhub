@@ -4,6 +4,8 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use tracing::info;
 
+use crate::tools;
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     // all database configs.
@@ -11,7 +13,7 @@ pub struct Config {
     // templates for different database types.
     // key: db_type, value: connection url template.
     // e.g. mysql: mysql://{user}:{password}@{host}:{port}/{database}
-    pub templates: HashMap<String, String>,
+    pub templates: HashMap<String, Template>,
 
     // Loaded from config file to help CLI usage. only saved in MEMORY.
     // key: alias, value: Database config instance.
@@ -21,10 +23,16 @@ pub struct Config {
     pub environments: HashMap<String, Vec<Database>>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct Template {
+    pub dsn: String, // represent the connection url template.
+    pub cli: String, // represent the command line template.
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Database {
     pub db_type: String,
-    pub url: String,
+    pub dsn: String,
     pub env: String,
     pub alias: String,
     // Optional fields
@@ -40,21 +48,30 @@ impl Config {
     pub fn new() -> Self {
         let mut templates = HashMap::new();
         templates.insert(
-            "mysql".to_string(),
-            "mysql://{user}:{password}@{host}:{port}/{database}".to_string(),
+            tools::MYSQL.to_string(),
+            Template {
+                dsn: "mysql://{user}:{password}@{host}:{port}/{database}".to_string(),
+                cli: "mysql -h {host} -P {port} -u {user} -p{password} {database}".to_string(),
+            },
         );
         templates.insert(
-            "mongodb".to_string(),
-            "mongodb://{user}:{password}@{host}:{port}/{database}".to_string(),
+            tools::MONGODB.to_string(),
+            Template {
+                dsn: "mongodb://{user}:{password}@{host}:{port}/{database}".to_string(),
+                cli: "mongosh mongodb://{user}:{password}@{host}:{port}/{database}".to_string(),
+            },
         );
         templates.insert(
-            "redis".to_string(),
-            "redis://{user}:{password}@{host}:{port}/{database}".to_string(),
+            tools::REDIS.to_string(),
+            Template {
+                dsn: "redis://{user}:{password}@{host}:{port}/{database}".to_string(),
+                cli: "redis-cli -h {host} -p {port} -a {password}".to_string(),
+            },
         );
 
         Self {
             databases: Vec::new(),
-            templates,
+            templates: HashMap::new(),
             aliases: HashMap::new(),
             environments: HashMap::new(),
         }
@@ -88,11 +105,21 @@ impl Config {
     }
 }
 
-
 pub fn load_or_create(config_path: &PathBuf) -> Result<Config> {
     if config_path.exists() {
         let content = std::fs::read_to_string(config_path)?;
-        Ok(serde_yaml::from_str(&content)?)
+        let mut config: Config = serde_yaml::from_str(&content)?;
+
+        // Populate aliases and environments
+        for db in &config.databases {
+            config.aliases.insert(db.alias.clone(), db.clone());
+            config
+                .environments
+                .entry(db.env.clone())
+                .or_default()
+                .push(db.clone());
+        }
+        Ok(config)
     } else {
         let config = Config::new();
         let content = serde_yaml::to_string(&config)?;
@@ -104,25 +131,51 @@ pub fn load_or_create(config_path: &PathBuf) -> Result<Config> {
     }
 }
 
-
-pub fn list_connections(config: &Config) {
+// list_connections function to list all available connections.
+// if env is specified, only list connections in that env.
+// if db_type is specified, only list connections of that type.
+pub fn list_connections(
+    config: &Config,
+    env_filter: Option<String>,
+    db_type_filter: Option<String>,
+) {
     println!("Databases:");
-    for (index, db) in config.databases.iter().enumerate() {
-        println!(
-            "  {}: {} ({}), Env: {}, Alias: {:?}",
-            index + 1,
-            db.db_type,
-            db.url,
-            db.env,
-            db.alias
-        );
+
+    let mut found_databases: u8 = 0;
+
+    // Print grouped databases by env.
+    for (env, db_list) in &config.environments {
+        // if env is specified, only list connections in that env.
+        if let Some(ref specified_env) = env_filter {
+            if env.ne(specified_env) {
+                continue;
+            }
+        }
+
+        println!("  Environment: {}", env);
+        for db in db_list {
+            // if db_type is specified, only list connections of that type.
+            if let Some(ref specified_db_type) = db_type_filter {
+                if db.db_type.ne(specified_db_type) {
+                    continue;
+                }
+            }
+
+            found_databases += 1;
+            println!("\t⭐️ Alias: {} [Type: {}] \n\t📜 Desc: {}",
+                     db.alias,
+                     db.db_type,
+                     db.description.clone().unwrap_or(String::from("No description")),
+            );
+        }
     }
 
-    println!("\nDB Connection Templates:");
-    for (db_type, template) in &config.templates {
-        println!("  {}: {}", db_type, template);
+    if found_databases == 0 {
+        println!("No databases found.");
     }
 }
+
+
 pub fn add_connection(
     config_path: &PathBuf,
     config: &mut Config,
@@ -139,7 +192,7 @@ pub fn add_connection(
     let new_db_index = config.environments.len();
     config.databases.push(Database {
         db_type: db_type.to_string(),
-        url: url.to_string(),
+        dsn: url.to_string(),
         env: env.to_string(),
         alias: alias.to_string(),
         description: Option::from(description.unwrap().to_string()),

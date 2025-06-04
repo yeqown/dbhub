@@ -108,7 +108,7 @@ async fn main() -> Result<()> {
         }
         Commands::Context { list, add, env, db_type, url, alias, description } => {
             if list {
-                config::list_connections(&cfg);
+                config::list_connections(&cfg, env, db_type);
                 return Ok(());
             } else if add {
                 if let (Some(alias), Some(env), Some(db_type), Some(url), Some(description)) = (alias, env, db_type, url, description) {
@@ -119,7 +119,7 @@ async fn main() -> Result<()> {
                 return Ok(());
             }
 
-            config::list_connections(&cfg);
+            config::list_connections(&cfg, env, db_type);
         }
         Commands::Install { tool } => {
             tools::install_tool(&tool)?;

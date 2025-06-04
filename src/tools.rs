@@ -1,18 +1,43 @@
+use crate::config::{Config, Database};
 use color_eyre::eyre::Result;
 use shell_words;
 use std::process::Command;
 use tracing::info;
-use crate::config::{Database};
 use which::which;
 
-// TODO(@yeqown): add redis-sentinel support.
-// TODO(@yeqown): add memcached support.
 
-pub fn connect(db: &Database) -> Result<()> {
+pub const MYSQL: &str = "mysql";
+const DORIS: &str = "doris";
+
+pub const MONGODB: &str = "mongodb";
+const DOCUMENTDB: &str = "documentdb";
+
+pub const REDIS: &str = "redis";
+// TODO(@yeqown): add redis-sentinel support.
+const REDIS_SENTINEL: &str = "redis-sentinel";
+
+// TODO(@yeqown): add memcached support.
+const MEMCACHED: &str = "memcached";
+
+
+const MYSQL_CLI_COMMAND: &str = "mysql";
+const MONGO_CLI_COMMAND: &str = "mongosh";
+const REDIS_CLI_COMMAND: &str = "redis-cli";
+
+/// Connect to a database using environment and database name
+///
+/// # Arguments
+///
+/// * `db` - The database connection information
+///
+/// # Returns
+///
+/// * `Result<()>` - Returns `Ok(())` if the connection is successful, otherwise returns an error
+pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
     let command = match db.db_type.as_str() {
-        "mysql" | "doris" => "mysql",
-        "mongodb" | "documentdb" => "mongosh",
-        "redis" => "redis-cli",
+        MYSQL | DORIS => MYSQL_CLI_COMMAND,
+        MONGODB | DOCUMENTDB => MONGO_CLI_COMMAND,
+        REDIS | REDIS_SENTINEL => REDIS_CLI_COMMAND,
         _ => return Err(color_eyre::eyre::eyre!("Unsupported database type: {}", db.db_type)),
     };
 
@@ -23,31 +48,35 @@ pub fn connect(db: &Database) -> Result<()> {
         color_eyre::eyre::eyre!("Command '{}' not found. Use 'dbhub install -t {}' to install it.", command, command)
     })?;
 
-    let args = shell_words::split(&db.url)?;
-    let status = Command::new(command)
-        .args(args)
-        .status()?;
+    let args = shell_words::split(&db.dsn)?;
+    let mut cmd = Command::new(command);
+    let cli = cmd.args(args);
 
-    if !status.success() {
-        return Err(color_eyre::eyre::eyre!("Failed to connect to database"));
-    }
+    // print the command and args
+    info!("Running command: {:?}", cli);
+
+    // TODO(@yeqown): open another shell to execute the interactive command.
+    //  and then exit the current shell.
 
     Ok(())
 }
 
+
+/// 解析 Database 实例的 url 字段，根据不同的数据库类型，构建不同的命令行参数
+/// 1. 每种数据库类型的 url 格式不同，配置格式为 config.templates 中的值
+/// 2. 每种数据库类型的命令行参数也不同，需要根据不同的数据库类型，构建不同的命令行参数
+fn build_cli_command(db: &Database) -> String {}
+
 pub fn install_tool(tool: &str) -> Result<()> {
-    // detect the client tool is already installed.
-    // if installed, just return.
-    // if not, try to install it.
     if which(tool).is_ok() {
         println!("The '{}' command is already installed.", tool);
         return Ok(());
     }
 
     match tool {
-        "mysql" => install_mysql()?,
-        "mongosh" => install_mongosh()?,
-        "redis-cli" => install_redis_cli()?,
+        MYSQL_CLI_COMMAND => install_mysql()?,
+        MONGO_CLI_COMMAND => install_mongosh()?,
+        REDIS_CLI_COMMAND => install_redis_cli()?,
         _ => return Err(color_eyre::eyre::eyre!("Unsupported tool: {}", tool)),
     }
     Ok(())
