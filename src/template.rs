@@ -1,11 +1,11 @@
 #[derive(Debug)]
-enum TemplatePart {
+enum TemplateToken {
     Literal(String), // 固定文本，例如 "mysql://"
     Variable(String), // 变量名，例如 "user"
 }
 
 /// 解析模板字符串，将其分解为 Literal 和 Variable 部分
-fn parse_template(template: &str) -> Vec<TemplatePart> {
+fn parse_template(template: &str) -> Vec<TemplateToken> {
     let mut parts = Vec::new();
     let mut current_pos = 0;
 
@@ -19,19 +19,19 @@ fn parse_template(template: &str) -> Vec<TemplatePart> {
 
         // 添加当前变量之前的字面量
         if full_match.start() > current_pos {
-            parts.push(TemplatePart::Literal(
+            parts.push(TemplateToken::Literal(
                 template[current_pos..full_match.start()].to_string(),
             ));
         }
 
         // 添加变量部分
-        parts.push(TemplatePart::Variable(var_name.to_string()));
+        parts.push(TemplateToken::Variable(var_name.to_string()));
         current_pos = full_match.end();
     }
 
     // 添加最后一个变量之后的字面量（如果有的话）
     if current_pos < template.len() {
-        parts.push(TemplatePart::Literal(template[current_pos..].to_string()));
+        parts.push(TemplateToken::Literal(template[current_pos..].to_string()));
     }
 
     parts
@@ -51,7 +51,7 @@ pub fn dynamic_parse_template(
 
     for (i, part) in template_parts.iter().enumerate() {
         match part {
-            TemplatePart::Literal(literal) => {
+            TemplateToken::Literal(literal) => {
                 // 尝试匹配字面量
                 if input_string[current_input_index..].starts_with(literal) {
                     current_input_index += literal.len();
@@ -60,13 +60,13 @@ pub fn dynamic_parse_template(
                     return None;
                 }
             }
-            TemplatePart::Variable(var_name) => {
+            TemplateToken::Variable(var_name) => {
                 // 找到下一个字面量作为当前变量的结束标记
                 let mut end_index_for_var = input_string.len(); // 默认变量匹配到字符串末尾
 
                 // 查找下一个 TemplatePart 中的字面量
                 for j in (i + 1)..template_parts.len() {
-                    if let TemplatePart::Literal(next_literal) = &template_parts[j] {
+                    if let TemplateToken::Literal(next_literal) = &template_parts[j] {
                         if !next_literal.is_empty() {
                             // 在剩余的 input_string 中查找下一个字面量
                             if let Some(idx) = input_string[current_input_index..].find(next_literal) {
