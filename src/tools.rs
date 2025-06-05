@@ -74,6 +74,8 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
 fn build_cli_command(db: &Database, template: &Template) -> Result<Vec<String>> {
     let variables = db.variables(template.dsn.as_str())?;
 
+    // TODO(@yeqown): use lua to enhance the flexibility of customize the connection command.
+
     let s = crate::template::fill_template(template.cli.as_str(), &variables);
     if let Some(s) = s {
         let args = shell_words::split(&s)?;

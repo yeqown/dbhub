@@ -1,5 +1,6 @@
 use crate::tools;
 use color_eyre::eyre::{eyre, Result};
+use console::{style, StyledObject};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -164,47 +165,62 @@ impl Database {
     }
 }
 
-// list_connections function to list all available connections.
-// if env is specified, only list connections in that env.
-// if db_type is specified, only list connections of that type.
+
 pub fn list_connections(
     config: &Config,
     env_filter: Option<String>,
     db_type_filter: Option<String>,
 ) {
-    println!("Databases:");
+    println!("{}", style("Databases:").bold());
 
-    let mut found_databases: u8 = 0;
+    let mut found_databases = 0;
 
-    // Print grouped databases by env.
+    // group the databases by env and db_type.
+    let mut grouped_databases: std::collections::BTreeMap<&str, std::collections::BTreeMap<&str, Vec<&Database>>> = std::collections::BTreeMap::new();
     for (env, db_list) in &config.environments {
         // if env is specified, only list connections in that env.
         if let Some(ref specified_env) = env_filter {
-            if env.ne(specified_env) {
+            if env != specified_env {
                 continue;
             }
         }
 
-        println!("  Environment: {}", env);
         for db in db_list {
             // if db_type is specified, only list connections of that type.
             if let Some(ref specified_db_type) = db_type_filter {
-                if db.db_type.ne(specified_db_type) {
+                if db.db_type != *specified_db_type {
                     continue;
                 }
             }
 
-            found_databases += 1;
-            println!("\t⭐️ Alias: {} [Type: {}] \n\t📜 Desc: {}",
-                     db.alias,
-                     db.db_type,
-                     db.description.clone().unwrap_or(String::from("No description")),
-            );
+            grouped_databases
+                .entry(env)
+                .or_insert_with(std::collections::BTreeMap::new)
+                .entry(&db.db_type)
+                .or_insert_with(Vec::new)
+                .push(db);
+        }
+    }
+
+    for (env, db_type_map) in grouped_databases {
+        let styled_env: StyledObject<&str> = style(env).blue().bold();
+        println!("  {}:", styled_env);
+
+        for (db_type, db_list) in db_type_map {
+            let styled_db_type: StyledObject<&str> = style(db_type).green().bold();
+            println!("    {}:", styled_db_type);
+
+            for db in db_list {
+                found_databases += 1;
+                let alias = format!("⭐️ Alias: {}", style(&db.alias).bold());
+                let desc = format!("📜 Desc : {}", style(db.description.clone().unwrap_or_else(|| "No description".to_string())).dim());
+                println!("      {} \n      {}", alias, desc);
+            }
         }
     }
 
     if found_databases == 0 {
-        println!("No databases found.");
+        println!("{}", style("No databases found.").red());
     }
 }
 
