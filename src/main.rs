@@ -1,4 +1,4 @@
-use clap::{ArgAction, Parser, Subcommand};
+use clap::{ArgAction, Parser, Subcommand, ValueHint};
 use color_eyre::eyre::Result;
 use dirs;
 use std::path::{Path, PathBuf};
@@ -20,12 +20,20 @@ struct Cli {
     config: Option<PathBuf>,
 }
 
+fn get_all_aliases() -> Vec<&'static str> {
+    vec!["aliases"]
+}
+
 #[derive(Subcommand)]
 enum Commands {
     /// Connect to a database using environment and database name
     Connect {
         /// Connection alias
-        #[arg(short, long)]
+        /// TODO(@yeqown): support auto-completion for alias.
+        #[arg(
+            value_parser = clap::builder::PossibleValuesParser::new(get_all_aliases()),
+            value_hint = ValueHint::Unknown,
+        )]
         alias: Option<String>,
     },
     /// Manage database connection contexts
@@ -42,7 +50,7 @@ enum Commands {
         #[arg(short, long)]
         env: Option<String>,
 
-        /// Database type (mysql, mongodb, documentdb, doris, redis)
+        /// Database type (mysql, mongodb, redis, redis-sentinel)
         #[arg(short = 't', long)]
         db_type: Option<String>,
 

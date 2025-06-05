@@ -54,36 +54,11 @@ pub struct Database {
 //
 // pub const REDIS_DSN_TEMPLATE: &str = "redis://{user}:{password}@{host}:{port}/{database}";
 //
-// impl Config {
-//     pub fn new() -> Self {
-//         let mut templates = HashMap::new();
-//         templates.insert(
-//             MYSQL.to_string(),
-//             Template {
-//                 dsn: MYSQL_DSN_TEMPLATE.to_string(),
-//             },
-//         );
-//         templates.insert(
-//             MONGO.to_string(),
-//             Template {
-//                 dsn: MONGO_DSN_TEMPLATE.to_string(),
-//             },
-//         );
-//         templates.insert(
-//             REDIS.to_string(),
-//             Template {
-//                 dsn: REDIS_DSN_TEMPLATE.to_string(),
-//             },
-//         );
-//
-//         Self {
-//             databases: Vec::new(),
-//             templates: HashMap::new(),
-//             aliases: HashMap::new(),
-//             environments: HashMap::new(),
-//         }
-//     }
-// }
+impl Config {
+    pub fn get_all_aliases(&self) -> Vec<String> {
+        self.aliases.keys().cloned().collect()
+    }
+}
 
 pub fn load_or_create(config_path: &PathBuf) -> Result<Config> {
     if !config_path.exists() {
@@ -106,8 +81,7 @@ pub fn load_or_create(config_path: &PathBuf) -> Result<Config> {
     // Populate aliases and environments
     for db in &config.databases {
         config.aliases.insert(db.alias.clone(), db.clone());
-        config
-            .environments
+        config.environments
             .entry(db.env.clone())
             .or_default()
             .push(db.clone());
