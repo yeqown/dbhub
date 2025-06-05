@@ -354,7 +354,7 @@ mod parse_variables_tests {
     }
 }
 
-#[warn(dead_code, unused)]
+#[allow(dead_code, unused)]
 pub fn fill_template(template: &str, variables: &HashMap<String, String>) -> Option<String> {
     let tokens = analyze(template);
     let mut result = String::new();

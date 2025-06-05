@@ -8,6 +8,7 @@ pub struct Configs;
 #[folder = "scripts/"]
 pub struct Scripts;
 
+#[allow(unused)]
 pub fn debug_embed() {
     println!("Configs:");
     for file in Configs::iter() {

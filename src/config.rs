@@ -43,47 +43,47 @@ pub struct Database {
     pub metadata: Option<HashMap<String, String>>,
 }
 
-pub const MYSQL: &str = "mysql";
-pub const MYSQL_DSN_TEMPLATE: &str = "mysql://{user}:{password}@{host}:{port}/{database}";
-
-pub const MONGO: &str = "mongo";
-
-pub const MONGO_DSN_TEMPLATE: &str = "mongodb://{user}:{password}@{host}:{port}/{database}";
-
-pub const REDIS: &str = "redis";
-
-pub const REDIS_DSN_TEMPLATE: &str = "redis://{user}:{password}@{host}:{port}/{database}";
-
-impl Config {
-    pub fn new() -> Self {
-        let mut templates = HashMap::new();
-        templates.insert(
-            MYSQL.to_string(),
-            Template {
-                dsn: MYSQL_DSN_TEMPLATE.to_string(),
-            },
-        );
-        templates.insert(
-            MONGO.to_string(),
-            Template {
-                dsn: MONGO_DSN_TEMPLATE.to_string(),
-            },
-        );
-        templates.insert(
-            REDIS.to_string(),
-            Template {
-                dsn: REDIS_DSN_TEMPLATE.to_string(),
-            },
-        );
-
-        Self {
-            databases: Vec::new(),
-            templates: HashMap::new(),
-            aliases: HashMap::new(),
-            environments: HashMap::new(),
-        }
-    }
-}
+// pub const MYSQL: &str = "mysql";
+// pub const MYSQL_DSN_TEMPLATE: &str = "mysql://{user}:{password}@{host}:{port}/{database}";
+//
+// pub const MONGO: &str = "mongo";
+//
+// pub const MONGO_DSN_TEMPLATE: &str = "mongodb://{user}:{password}@{host}:{port}/{database}";
+//
+// pub const REDIS: &str = "redis";
+//
+// pub const REDIS_DSN_TEMPLATE: &str = "redis://{user}:{password}@{host}:{port}/{database}";
+//
+// impl Config {
+//     pub fn new() -> Self {
+//         let mut templates = HashMap::new();
+//         templates.insert(
+//             MYSQL.to_string(),
+//             Template {
+//                 dsn: MYSQL_DSN_TEMPLATE.to_string(),
+//             },
+//         );
+//         templates.insert(
+//             MONGO.to_string(),
+//             Template {
+//                 dsn: MONGO_DSN_TEMPLATE.to_string(),
+//             },
+//         );
+//         templates.insert(
+//             REDIS.to_string(),
+//             Template {
+//                 dsn: REDIS_DSN_TEMPLATE.to_string(),
+//             },
+//         );
+//
+//         Self {
+//             databases: Vec::new(),
+//             templates: HashMap::new(),
+//             aliases: HashMap::new(),
+//             environments: HashMap::new(),
+//         }
+//     }
+// }
 
 pub fn load_or_create(config_path: &PathBuf) -> Result<Config> {
     if !config_path.exists() {
