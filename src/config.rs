@@ -1,9 +1,9 @@
-use color_eyre::eyre::Result;
+use crate::tools;
+use color_eyre::eyre::{eyre, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use tracing::info;
-use crate::tools;
+use tracing::{info, warn};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -78,14 +78,14 @@ impl Config {
 
     pub fn validate_connection_string(&self, db_type: &str, url: &str) -> Result<()> {
         let template = self.templates.get(db_type).ok_or_else(|| {
-            color_eyre::eyre::eyre!("No template found for database type: {}", db_type)
+            eyre!("No template found for database type: {}", db_type)
         })?;
 
         // TODO(@yeqown): verify the connection string format with the template.dsn.
         let required_components = vec!["host", "port"];
         for component in required_components {
             if !template.dsn.contains(component) {
-                return Err(color_eyre::eyre::eyre!(
+                return Err(eyre!(
                     "Template missing required component: {}",
                     component
                 ));
@@ -94,7 +94,7 @@ impl Config {
 
         // verify the url format, whether it matches the template format.
         if !url.starts_with(&format!("{}", db_type)) {
-            return Err(color_eyre::eyre::eyre!(
+            return Err(eyre!(
                 "Invalid URL format for {}",
                 db_type
             ));
@@ -133,18 +133,23 @@ pub fn load_or_create(config_path: &PathBuf) -> Result<Config> {
 impl Database {
     // Parse the variables from the connection string. Including
     // the metadata, and the connection url itself as dsn.
-    pub fn variables(&self, template: &Template) -> HashMap<String, String> {
+    pub fn variables(&self, dsn_template: &str) -> HashMap<String, String> {
         let mut variables = HashMap::new();
 
         // Parse the connection url and extract the variables.
         // e.g. mysql://{user}:{password}@{host}:{port}/{database}
         // return a HashMap of variables.
         // E.g. { "user": "root", "password": "root", "host": "localhost", "port": "3306", "database": "test" }
-        let vars = crate::template::dynamic_parse_template(&template.dsn, &self.dsn);
+        let vars = crate::template::parse_variables(&dsn_template, &self.dsn);
         if let Some(vars) = vars {
             for (key, value) in vars {
                 variables.insert(key, value);
             }
+        } else {
+            warn!(
+                "Could not parse variables from connection string: {}, Check please!!!",
+                self.dsn,
+            )
         }
 
         // Add metadata to the variables, but the key starts with "meta_".
