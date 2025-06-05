@@ -1,46 +1,3 @@
-# DB Hub
-
-一个用于管理多环境、多数据库连接的命令行工具。支持 MySQL、MongoDB、DocumentDB、Doris 和 Redis 数据库的连接管理。
-
-## 特性
-
-- 多环境配置管理（开发、测试、生产等）
-- 多数据库支持（MySQL、MongoDB、DocumentDB、Doris、Redis）
-- 连接字符串模板自定义
-- 配置格式自动校验
-- 支持为连接配置别名
-- 跨平台支持（Windows、Linux、macOS）
-- 自动安装数据库客户端工具
-
-## 安装
-
-从 [GitHub Releases](https://github.com/your-username/dbhub/releases) 下载适合你系统的二进制文件：
-
-- Linux: `dbhub-linux-amd64.tar.gz` 或 `dbhub-linux-arm64.tar.gz`
-- macOS: `dbhub-darwin-amd64.tar.gz` 或 `dbhub-darwin-arm64.tar.gz`
-- Windows: `dbhub-windows-amd64.exe.zip`
-
-## 使用方法
-
-```shell
-Usage: dbhub [OPTIONS] [COMMAND]
-
-Commands:
-  connect  Connect to a database using environment and database name
-  context  Manage database connection contexts
-  help     Print this message or the help of the given subcommand(s)
-
-Options:
-  -c, --config <CONFIG>  Config file path
-  -h, --help             Print help
-  -V, --version          Print version
-```
-
-## 配置文件
-
-配置文件存储在 `~/.dbhub/config.yml`，格式如下：
-
-```yaml
 # This is a sample configuration file for the dbhub CLI.
 # You can use this file to configure the CLI to connect to your databases.
 # The CLI will look for this file in the following locations:
@@ -107,8 +64,3 @@ templates:
   redis:
     dsn: redis://{user}:{password}@{host}:{port}/{database}
     cli: redis-cli -h{host} -p{port} -a{password} -n{database}
-```
-
-## 许可证
-
-MIT

@@ -3,7 +3,7 @@ use color_eyre::eyre::{eyre, Result};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use tracing::{info, warn};
+use tracing::info;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -133,7 +133,7 @@ pub fn load_or_create(config_path: &PathBuf) -> Result<Config> {
 impl Database {
     // Parse the variables from the connection string. Including
     // the metadata, and the connection url itself as dsn.
-    pub fn variables(&self, dsn_template: &str) -> HashMap<String, String> {
+    pub fn variables(&self, dsn_template: &str) -> Result<HashMap<String, String>> {
         let mut variables = HashMap::new();
 
         // Parse the connection url and extract the variables.
@@ -146,10 +146,7 @@ impl Database {
                 variables.insert(key, value);
             }
         } else {
-            warn!(
-                "Could not parse variables from connection string: {}, Check please!!!",
-                self.dsn,
-            )
+            return Err(eyre!("Could not parse variables: {} !!!",self.dsn));
         }
 
         // Add metadata to the variables, but the key starts with "meta_".
@@ -163,7 +160,7 @@ impl Database {
         // Add the connection url itself as dsn.
         variables.insert("dsn".to_string(), self.dsn.clone());
 
-        variables
+        Ok(variables)
     }
 }
 

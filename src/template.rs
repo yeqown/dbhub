@@ -46,7 +46,7 @@ pub fn analyze(template: &str) -> Vec<TemplateToken> {
 
 
 #[cfg(test)]
-mod parse_template_tests {
+mod analyze_tests {
     use super::*;
 
     #[test]
@@ -215,7 +215,7 @@ pub fn parse_variables(
                 }
 
                 // If the next token is NOT a literal, returns None since we can't find the end index for the variable.
-                // e.g. we CANNOT split "abcde" as {user}{password} because we don't know the end index for the user variable.
+                // E.g., we cannot split "abcde" as {user}{password} because we don't know the end index for the user variable.
                 if let TemplateToken::Literal(next_literal) = &tokens[j] {
                     if !next_literal.is_empty() {
                         if let Some(idx) = input_string[input_cursor..].find(next_literal) {
@@ -244,7 +244,7 @@ pub fn parse_variables(
 
 
 #[cfg(test)]
-mod dynamic_parse_template_tests {
+mod parse_variables_tests {
     use super::*;
     use std::collections::HashMap;
 
@@ -295,9 +295,14 @@ mod dynamic_parse_template_tests {
     #[test]
     fn test_missing_component() {
         let template = "mysql://{user}:{password}@{host}:{port}/{database}";
-        let input = "mysql://root@localhost:3306/test_db";
+        let input = "mysql://root:@localhost:3306/test_db";
 
-        assert!(parse_variables(template, input).is_none());
+        let result = parse_variables(template, input).unwrap();
+        assert_eq!(result.get("user"), Some(&"root".to_string()));
+        assert_eq!(result.get("password"), Some(&"".to_string()));
+        assert_eq!(result.get("host"), Some(&"localhost".to_string()));
+        assert_eq!(result.get("port"), Some(&"3306".to_string()));
+        assert_eq!(result.get("database"), Some(&"test_db".to_string()));
     }
 
     #[test]

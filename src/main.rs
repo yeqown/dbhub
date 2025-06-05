@@ -1,8 +1,8 @@
-use clap::{Parser, Subcommand, ArgAction};
+use clap::{ArgAction, Parser, Subcommand};
 use color_eyre::eyre::Result;
-use std::path::{Path,PathBuf};
-use tracing::info;
 use dirs;
+use std::path::{Path, PathBuf};
+use tracing::info;
 
 mod config;
 mod tools;
@@ -56,12 +56,6 @@ enum Commands {
         /// Description of the connection
         #[arg(short, long)]
         description: Option<String>,
-    },
-    /// Install database client tools
-    Install {
-        /// Tool to install (mysql, mongosh, redis-cli)
-        #[arg(short, long)]
-        tool: String,
     },
 }
 
@@ -121,9 +115,6 @@ async fn main() -> Result<()> {
             }
 
             config::list_connections(&cfg, env, db_type);
-        }
-        Commands::Install { tool } => {
-            tools::install_tool(&tool)?;
         }
     }
 
