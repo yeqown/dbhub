@@ -1,23 +1,14 @@
 use crate::config::{Config, Database, Template};
+use crate::embedded::Scripts;
 use color_eyre::eyre::{eyre, Result};
+use dirs;
+use mlua::{Lua, Table};
 use shell_words;
+use std::collections::HashMap;
 use std::process::Command;
-use tracing::{info, warn};
+use tracing::{debug, info};
 use which::which;
 
-pub const MYSQL: &str = "mysql";
-
-pub const MONGODB: &str = "mongo";
-
-pub const REDIS: &str = "redis";
-
-// TODO(@yeqown): add memcached support.
-#[warn(unused)]
-const MEMCACHED: &str = "memcached";
-
-const MYSQL_CLI_COMMAND: &str = "mysqlsh";
-const MONGO_CLI_COMMAND: &str = "mongosh";
-const REDIS_CLI_COMMAND: &str = "redis-cli";
 
 /// Connect to a database using environment and database name
 ///
@@ -29,13 +20,6 @@ const REDIS_CLI_COMMAND: &str = "redis-cli";
 ///
 /// * `Result<()>` - Returns `Ok(())` if the connection is successful, otherwise returns an error
 pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
-    let mut commanded_cli = match db.db_type.as_str() {
-        MYSQL => MYSQL_CLI_COMMAND,
-        MONGODB => MONGO_CLI_COMMAND,
-        REDIS => REDIS_CLI_COMMAND,
-        _ => return Err(eyre!("Unsupported database type: {}", db.db_type)),
-    };
-
     let template = cfg.templates.get(db.db_type.as_str());
     if template.is_none() {
         return Err(eyre!("No template found for database type: {}", db.db_type));
@@ -45,11 +29,11 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
     let args = build_cli_command(db, tpl)?;
     info!("Running command: \n\n\t💻 -> {}\n", args.join(" "));
 
+    let mut commanded_cli = "dbhub";
+
     // Extract the command from the first argument
     if let Some(template_cli) = args.first() {
-        if template_cli.ne(MYSQL_CLI_COMMAND) {
-            commanded_cli = template_cli;
-        }
+        commanded_cli = template_cli;
     }
 
     // Whether the command exists
@@ -74,112 +58,51 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
 fn build_cli_command(db: &Database, template: &Template) -> Result<Vec<String>> {
     let variables = db.variables(template.dsn.as_str())?;
 
-    // TODO(@yeqown): use lua to enhance the flexibility of customize the connection command.
-
-    let s = crate::template::fill_template(template.cli.as_str(), &variables);
-    if let Some(s) = s {
-        let args = shell_words::split(&s)?;
-
-        return Ok(args);
+    // Use the lua script to generate the command at first.
+    let lua_command = try_execute_lua(&db.db_type, &variables);
+    match lua_command {
+        Ok(lua_command) => {
+            Ok(shell_words::split(&lua_command)?)
+        }
+        Err(e) => {
+            // Use the template to generate the command.
+            Err(e)
+        }
     }
-
-    Err(
-        eyre!("Failed to parse the connection string: {} as template: {}", db.dsn, template.dsn)
-    )
 }
 
-// pub fn install_tool(tool: &str) -> Result<(), eyre::Report> {
-//     if which(tool).is_ok() {
-//         println!("The '{}' command is already installed.", tool);
-//         return Ok(());
-//     }
-//
-//     match tool {
-//         MYSQL_CLI_COMMAND => install_mysql()?,
-//         MONGO_CLI_COMMAND => install_mongosh()?,
-//         REDIS_CLI_COMMAND => install_redis_cli()?,
-//         _ => return Err(color_eyre::eyre::eyre!("Unsupported tool: {}", tool)),
-//     }
-//     Ok(())
-// }
-// fn install_mysql() -> Result<(), eyre::Report> {
-//     #[cfg(target_os = "macos")]
-//     {
-//         Command::new("brew")
-//             .args(["install", "mysql"])
-//             .status()?;
-//     }
-//     #[cfg(target_os = "linux")]
-//     {
-//         Command::new("sudo")
-//             .args(["apt-get", "install", "-y", "mysql-client"])
-//             .status()?;
-//     }
-//     #[cfg(target_os = "windows")]
-//     {
-//         Command::new("choco")
-//             .args(["install", "mysql", "-y"])
-//             .status()?;
-//     }
-//     Ok(())
-// }
-//
-// fn install_mongosh() -> Result<(), eyre::Report> {
-//     #[cfg(target_os = "macos")]
-//     {
-//         Command::new("brew")
-//             .args(["install", "mongosh"])
-//             .status()?;
-//     }
-//     #[cfg(target_os = "linux")]
-//     {
-//         // 为 Linux 添加 MongoDB 仓库并安装 mongosh
-//         Command::new("curl")
-//             .args(["-fsSL", "https://www.mongodb.org/static/pgp/server-6.0.asc", "-o", "/tmp/mongodb.asc"])
-//             .status()?;
-//         Command::new("sudo")
-//             .args(["apt-key", "add", "/tmp/mongodb.asc"])
-//             .status()?;
-//         Command::new("echo")
-//             .arg("deb [ arch=amd64,arm64 ] https://repo.mongodb.org/apt/ubuntu focal/mongodb-org/6.0 multiverse")
-//             .stdout(std::process::Stdio::piped())
-//             .spawn()?
-//             .stdout
-//             .ok_or_else(|| color_eyre::eyre::eyre!("Failed to get stdout"))?;
-//         Command::new("sudo")
-//             .args(["apt-get", "update"])
-//             .status()?;
-//         Command::new("sudo")
-//             .args(["apt-get", "install", "-y", "mongodb-mongosh"])
-//             .status()?;
-//     }
-//     #[cfg(target_os = "windows")]
-//     {
-//         Command::new("choco")
-//             .args(["install", "mongodb-shell", "-y"])
-//             .status()?;
-//     }
-//     Ok(())
-// }
-//
-// fn install_redis_cli() -> Result<(), eyre::Report> {
-//     #[cfg(target_os = "macos")]
-//     {
-//         Command::new("brew")
-//             .args(["install", "redis"])
-//             .status()?;
-//     }
-//     #[cfg(target_os = "linux")]
-//     {
-//         Command::new("sudo")
-//             .args(["apt-get", "install", "-y", "redis-tools"])
-//             .status()?;
-//     }
-//     #[cfg(target_os = "windows")]
-//     {
-//         Command::new("choco")
-//             .args(["install", "redis-cli", "-y"])
-//             .status()?;
-//     }
-//     Ok(())
-// }
+fn try_execute_lua(db_type: &str, variables: &HashMap<String, String>) -> Result<String> {
+    let home_dir = dirs::home_dir()
+        .ok_or_else(|| eyre!("Failed to get home directory"))?;
+
+    let lua_script = format!("{}.lua", db_type);
+    let lua_script_path = home_dir.join(".dbhub").join(lua_script.clone());
+
+    if !lua_script_path.exists() {
+        debug!("lua script not found, use the default script. now copy it to the lua_script_path.");
+        // Use the default script in embedded::Scripts
+        // Copy the script to the lua_script_path if it doesn't exist.
+        // Only fail if the script doesn't exist in embedded::Scripts either.
+        let file = Scripts::get(format!("{}", lua_script).as_str());
+        if file.is_none() {
+            return Err(eyre!("No lua script found for database type: {}", db_type));
+        }
+
+        std::fs::create_dir_all(lua_script_path.parent().unwrap())?;
+        std::fs::write(&lua_script_path, file.unwrap().data.as_ref())?;
+
+        info!("No lua script found, apply the default script to: {:?}", lua_script_path);
+    }
+
+    let lua = Lua::new();
+    let globals = lua.globals();
+
+    let lua_variables: Table = lua.create_table().unwrap();
+    for (key, value) in variables {
+        lua_variables.set(key.clone(), value.clone()).unwrap();
+    }
+    globals.set("variables", lua_variables).unwrap();
+
+    let result: String = lua.load(lua_script_path).eval().unwrap();
+    Ok(result)
+}

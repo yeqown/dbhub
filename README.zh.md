@@ -5,12 +5,12 @@
 ## 特性
 
 - 多环境配置管理（开发、测试、生产等）
-- 多数据库支持（MySQL、MongoDB、DocumentDB、Doris、Redis）
+- 多数据库支持（MySQL、MongoDB、Redis、Redis-Sentinel）
 - 连接字符串模板自定义
 - 配置格式自动校验
 - 支持为连接配置别名
 - 跨平台支持（Windows、Linux、macOS）
-- 自动安装数据库客户端工具
+- Lua 脚本支持自定义命令
 
 ## 安装
 
@@ -67,11 +67,11 @@ Options:
 databases:
   - alias: my-local-mysql
     db_type: mysql
-    dsn: "mysql://user:password@tcp(localhost:3306)/db?parseTime=True"
+    dsn: "mysql://root:root@tcp(localhost:3306)/db?parseTime=True"
     env: local
     description: "The local mysql database for quickly testing dbhub CLI."
     metadata:
-      local: "1"
+      mysql: "1"
       version: "8.0.32"
   - alias: my-local-mongo
     db_type: mongo
@@ -79,7 +79,7 @@ databases:
     env: local
     description: "The local mongo database for quickly testing dbhub CLI."
     metadata:
-      local: "1"
+      mongo: "1"
       version: "6.0.1"
   - alias: my-local-redis
     db_type: redis
@@ -87,7 +87,7 @@ databases:
     env: local
     description: "The local redis database for quickly testing dbhub CLI."
     metadata:
-      local: "1"
+      redis: "1"
       version: "7.2.1"
 
 # `templates` section is a list of template related to a specified database type including `dsn` and `cli`.
@@ -100,13 +100,10 @@ databases:
 templates:
   mysql:
     dsn: mysql://{user}:{password}@tcp({host}:{port})/{database}?{query}
-    cli: mysqlsh -h{host} -P{port} -u{user} -p{password} {database}
   mongo:
     dsn: mongodb://{user}:{password}@{host}:{port}/{database}?{query}
-    cli: mongosh {host}:{port}/{database}?{query}
   redis:
     dsn: redis://{user}:{password}@{host}:{port}/{database}
-    cli: redis-cli -h{host} -p{port} -a{password} -n{database}
 ```
 
 ## 许可证

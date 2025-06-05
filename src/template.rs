@@ -167,7 +167,7 @@ mod analyze_tests {
     }
 }
 
-/// dynamic_parse_template function to parse the input string and extract the variables.
+/// Dynamic_parse_template function to parse the input string and extract the variables.
 /// Example:
 ///    template: "mysql://{user}:{password}@{host}:{port}/{database}"
 ///    input: "mysql://root:root@localhost:3306/test_db"
@@ -354,6 +354,7 @@ mod parse_variables_tests {
     }
 }
 
+#[warn(dead_code, unused)]
 pub fn fill_template(template: &str, variables: &HashMap<String, String>) -> Option<String> {
     let tokens = analyze(template);
     let mut result = String::new();

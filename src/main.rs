@@ -7,6 +7,7 @@ use tracing::info;
 mod config;
 mod tools;
 mod template;
+mod embedded;
 
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
@@ -59,12 +60,13 @@ enum Commands {
     },
 }
 
-#[tokio::main]
-async fn main() -> Result<()> {
+fn main() -> Result<()> {
     color_eyre::install()?;
     tracing_subscriber::fmt::init();
 
     let mut cli = Cli::parse();
+
+    // embedded::debug_embed();
 
     // Make sure the config directory exists
     let config_path = cli.config.take().unwrap_or(PathBuf::from("~/.dbhub/config.yml"));

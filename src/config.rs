@@ -1,4 +1,4 @@
-use crate::tools;
+use crate::embedded::Configs;
 use color_eyre::eyre::{eyre, Result};
 use console::{style, StyledObject};
 use serde::{Deserialize, Serialize};
@@ -26,7 +26,6 @@ pub struct Config {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Template {
     pub dsn: String, // represent the connection url template.
-    pub cli: String, // represent the command line template.
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -44,28 +43,36 @@ pub struct Database {
     pub metadata: Option<HashMap<String, String>>,
 }
 
+pub const MYSQL: &str = "mysql";
+pub const MYSQL_DSN_TEMPLATE: &str = "mysql://{user}:{password}@{host}:{port}/{database}";
+
+pub const MONGO: &str = "mongo";
+
+pub const MONGO_DSN_TEMPLATE: &str = "mongodb://{user}:{password}@{host}:{port}/{database}";
+
+pub const REDIS: &str = "redis";
+
+pub const REDIS_DSN_TEMPLATE: &str = "redis://{user}:{password}@{host}:{port}/{database}";
+
 impl Config {
     pub fn new() -> Self {
         let mut templates = HashMap::new();
         templates.insert(
-            tools::MYSQL.to_string(),
+            MYSQL.to_string(),
             Template {
-                dsn: "mysql://{user}:{password}@{host}:{port}/{database}".to_string(),
-                cli: "mysql -h {host} -P {port} -u {user} -p{password} {database}".to_string(),
+                dsn: MYSQL_DSN_TEMPLATE.to_string(),
             },
         );
         templates.insert(
-            tools::MONGODB.to_string(),
+            MONGO.to_string(),
             Template {
-                dsn: "mongodb://{user}:{password}@{host}:{port}/{database}".to_string(),
-                cli: "mongosh mongodb://{user}:{password}@{host}:{port}/{database}".to_string(),
+                dsn: MONGO_DSN_TEMPLATE.to_string(),
             },
         );
         templates.insert(
-            tools::REDIS.to_string(),
+            REDIS.to_string(),
             Template {
-                dsn: "redis://{user}:{password}@{host}:{port}/{database}".to_string(),
-                cli: "redis-cli -h {host} -p {port} -a {password}".to_string(),
+                dsn: REDIS_DSN_TEMPLATE.to_string(),
             },
         );
 
@@ -76,59 +83,36 @@ impl Config {
             environments: HashMap::new(),
         }
     }
-
-    pub fn validate_connection_string(&self, db_type: &str, url: &str) -> Result<()> {
-        let template = self.templates.get(db_type).ok_or_else(|| {
-            eyre!("No template found for database type: {}", db_type)
-        })?;
-
-        // TODO(@yeqown): verify the connection string format with the template.dsn.
-        let required_components = vec!["host", "port"];
-        for component in required_components {
-            if !template.dsn.contains(component) {
-                return Err(eyre!(
-                    "Template missing required component: {}",
-                    component
-                ));
-            }
-        }
-
-        // verify the url format, whether it matches the template format.
-        if !url.starts_with(&format!("{}", db_type)) {
-            return Err(eyre!(
-                "Invalid URL format for {}",
-                db_type
-            ));
-        }
-
-        Ok(())
-    }
 }
 
 pub fn load_or_create(config_path: &PathBuf) -> Result<Config> {
-    if config_path.exists() {
-        let content = std::fs::read_to_string(config_path)?;
-        let mut config: Config = serde_yaml::from_str(&content)?;
+    if !config_path.exists() {
+        // Copy configs/sample.yml to `config_path`
+        let sample_config = Configs::get("sample.yml");
+        if sample_config.is_none() {
+            return Err(eyre!("Sample config not found"));
+        }
 
-        // Populate aliases and environments
-        for db in &config.databases {
-            config.aliases.insert(db.alias.clone(), db.clone());
-            config
-                .environments
-                .entry(db.env.clone())
-                .or_default()
-                .push(db.clone());
-        }
-        Ok(config)
-    } else {
-        let config = Config::new();
-        let content = serde_yaml::to_string(&config)?;
-        if let Some(parent) = config_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        std::fs::write(config_path, content)?;
-        Ok(config)
+        let sample_config = sample_config.unwrap();
+        std::fs::create_dir_all(config_path.parent().unwrap())?;
+        std::fs::write(config_path, sample_config.data)?;
+
+        info!("No config file found, apply the sample config file to: {:?}", config_path);
     }
+
+    let content = std::fs::read_to_string(config_path)?;
+    let mut config: Config = serde_yaml::from_str(&content)?;
+
+    // Populate aliases and environments
+    for db in &config.databases {
+        config.aliases.insert(db.alias.clone(), db.clone());
+        config
+            .environments
+            .entry(db.env.clone())
+            .or_default()
+            .push(db.clone());
+    }
+    Ok(config)
 }
 
 impl Database {
@@ -162,6 +146,19 @@ impl Database {
         variables.insert("dsn".to_string(), self.dsn.clone());
 
         Ok(variables)
+    }
+
+    pub fn validate_connection_string(&self, cfg: &Config) -> Result<bool> {
+        let template = cfg.templates.get(&self.db_type).ok_or_else(|| {
+            eyre!("No template found for database type: {}", self.db_type)
+        })?;
+
+        let vars = self.variables(&template.dsn);
+        if let Err(e) = vars {
+            return Err(e);
+        }
+
+        Ok(true)
     }
 }
 
@@ -234,25 +231,26 @@ pub fn add_connection(
     alias: &str,
     description: Option<String>,
 ) -> Result<()> {
-    // validate the connection string
-    config.validate_connection_string(db_type, url)?;
-
-    // save the connection config to the config file.
-    let new_db_index = config.environments.len();
-    config.databases.push(Database {
+    let db = Database {
         db_type: db_type.to_string(),
         dsn: url.to_string(),
         env: env.to_string(),
         alias: alias.to_string(),
         description: Option::from(description.unwrap().to_string()),
         metadata: None,
-    });
-    _ = new_db_index;
+    };
 
     // Make sure the alias is unique
     if config.aliases.contains_key(alias) {
-        return Err(color_eyre::eyre::eyre!("Alias '{}' already exists", alias));
+        return Err(eyre!("Alias '{}' already exists", alias));
     }
+
+    if let Err(e) = db.validate_connection_string(config) {
+        return Err(e);
+    }
+
+    // save the connection config to the config file.
+    config.databases.push(db.clone());
 
     let content = serialize_config(&config)?;
     std::fs::write(config_path, content)?;

@@ -8,12 +8,12 @@ DocumentDB, Doris, and Redis databases.
 ## Features
 
 - Multi-environment configuration management (dev, test, prod, etc.)
-- Multiple database support (MySQL, MongoDB, DocumentDB, Doris, Redis)
+- Multiple database support (MySQL, MongoDB, Redis, Redis-Sentinel)
 - Customizable connection string templates
 - Automatic configuration format validation
 - Connection alias support
 - Cross-platform support (Windows, Linux, macOS)
-- Automatic database client tool installation
+- Lua script support for custom commands
 
 ## Installation
 
@@ -70,11 +70,11 @@ The configuration file is stored at `~/.dbhub/config.yml` with the following for
 databases:
   - alias: my-local-mysql
     db_type: mysql
-    dsn: "mysql://user:password@tcp(localhost:3306)/db?parseTime=True"
+    dsn: "mysql://root:root@tcp(localhost:3306)/db?parseTime=True"
     env: local
     description: "The local mysql database for quickly testing dbhub CLI."
     metadata:
-      local: "1"
+      mysql: "1"
       version: "8.0.32"
   - alias: my-local-mongo
     db_type: mongo
@@ -82,7 +82,7 @@ databases:
     env: local
     description: "The local mongo database for quickly testing dbhub CLI."
     metadata:
-      local: "1"
+      mongo: "1"
       version: "6.0.1"
   - alias: my-local-redis
     db_type: redis
@@ -90,7 +90,7 @@ databases:
     env: local
     description: "The local redis database for quickly testing dbhub CLI."
     metadata:
-      local: "1"
+      redis: "1"
       version: "7.2.1"
 
 # `templates` section is a list of template related to a specified database type including `dsn` and `cli`.
@@ -103,13 +103,10 @@ databases:
 templates:
   mysql:
     dsn: mysql://{user}:{password}@tcp({host}:{port})/{database}?{query}
-    cli: mysqlsh -h{host} -P{port} -u{user} -p{password} {database}
   mongo:
     dsn: mongodb://{user}:{password}@{host}:{port}/{database}?{query}
-    cli: mongosh {host}:{port}/{database}?{query}
   redis:
     dsn: redis://{user}:{password}@{host}:{port}/{database}
-    cli: redis-cli -h{host} -p{port} -a{password} -n{database}
 ```
 
 ## License
