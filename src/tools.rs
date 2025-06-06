@@ -2,11 +2,11 @@ use crate::config::{Config, Database, Template};
 use crate::embedded::Scripts;
 use color_eyre::eyre::{eyre, Result};
 use dirs;
-use mlua::{Lua, Table};
+use mlua::Lua;
 use shell_words;
 use std::collections::HashMap;
 use std::process::Command;
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 use which::which;
 
 
@@ -97,12 +97,30 @@ fn try_execute_lua(db_type: &str, variables: &HashMap<String, String>) -> Result
     let lua = Lua::new();
     let globals = lua.globals();
 
-    let lua_variables: Table = lua.create_table().unwrap();
-    for (key, value) in variables {
-        lua_variables.set(key.clone(), value.clone()).unwrap();
-    }
-    globals.set("variables", lua_variables).unwrap();
+    match lua.create_table() {
+        Ok(lua_variables) => {
+            // Set the variables in the table
+            for (key, value) in variables {
+                if let Err(e) = lua_variables.set(key.clone(), value.clone()) {
+                    warn!("Runtime error: could not set to lua table '{}': {}", key, e);
+                }
+            }
 
-    let result: String = lua.load(lua_script_path).eval().unwrap();
-    Ok(result)
+            if let Err(e) = globals.set("variables", lua_variables) {
+                warn!("Runtime error: could not set to lua table 'variables': {}", e);
+            }
+        }
+        Err(e) => {
+            return Err(eyre!("Runtime error: could not create lua table: {}", e));
+        }
+    }
+
+    match lua.load(lua_script_path).eval() {
+        Ok(result) => {
+            Ok(result)
+        }
+        Err(err) => {
+            Err(eyre!("Runtime error: could not execute lua script: {}", err))
+        }
+    }
 }
