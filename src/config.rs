@@ -4,7 +4,8 @@ use console::{style, StyledObject};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
-use tracing::info;
+use tracing::{error, info, warn};
+
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
@@ -43,50 +44,140 @@ pub struct Database {
     pub metadata: Option<HashMap<String, String>>,
 }
 
-// pub const MYSQL: &str = "mysql";
-// pub const MYSQL_DSN_TEMPLATE: &str = "mysql://{user}:{password}@{host}:{port}/{database}";
-//
-// pub const MONGO: &str = "mongo";
-//
-// pub const MONGO_DSN_TEMPLATE: &str = "mongodb://{user}:{password}@{host}:{port}/{database}";
-//
-// pub const REDIS: &str = "redis";
-//
-// pub const REDIS_DSN_TEMPLATE: &str = "redis://{user}:{password}@{host}:{port}/{database}";
-//
 impl Config {
-    pub fn get_all_aliases(&self) -> Vec<String> {
-        self.aliases.keys().cloned().collect()
+    #[allow(unused)]
+    pub fn get_all_aliases(&self) -> Vec<&str> {
+        self.aliases.iter().map(|(alias, _)| alias.as_str()).collect()
     }
 }
 
-pub fn load_or_create(config_path: &PathBuf) -> Result<Config> {
-    if !config_path.exists() {
-        // Copy configs/sample.yml to `config_path`
-        let sample_config = Configs::get("sample.yml");
-        if sample_config.is_none() {
-            return Err(eyre!("Sample config not found"));
+/// DBHUB_CONFIG environment variable.
+/// If set, use the value as the config file path.
+/// If not set, use the default config file path.
+/// The default config file path is `~/.dbhub/config.yml`.
+///
+/// Environment variable MUST follow the following format:
+///
+/// ```bash
+/// export DBHUB_CONFIG=~/.dbhub/config1.yml:~/.dbhub/config2.yml
+/// ```
+const DBHUB_CONFIG_ENV: &str = "DBHUB_CONFIG";
+const DEFAULT_CONFIG_PATH: &str = "~/.dbhub/config.yml";
+const SAMPLE_CONFIG_FILE_PATH: &str = "sample.yml";
+
+fn get_config_paths() -> Vec<PathBuf> {
+    match std::env::var(DBHUB_CONFIG_ENV) {
+        Ok(paths) => {
+            paths
+                .split(':')
+                .map(|path| deal_config_path(path).unwrap())
+                .collect()
+        }
+        Err(_) => {
+            info!("No DBHUB_CONFIG environment variable found, use the default config file path: {:?}", DEFAULT_CONFIG_PATH);
+            match deal_config_path(DEFAULT_CONFIG_PATH) {
+                Some(path) => vec![path],
+                None => vec![],
+            }
+        }
+    }
+}
+
+fn deal_config_path(path: &str) -> Option<PathBuf> {
+    if let Some(home) = dirs::home_dir() {
+        // Unix-like system (e.g., Linux, macOS)
+        #[cfg(target_os = "macos")]
+        if path.starts_with("~") {
+            let relative_path = path.strip_prefix("~/").unwrap_or("");
+            return Some(home.join(PathBuf::from(relative_path)));
         }
 
-        let sample_config = sample_config.unwrap();
-        std::fs::create_dir_all(config_path.parent().unwrap())?;
-        std::fs::write(config_path, sample_config.data)?;
-
-        info!("No config file found, apply the sample config file to: {:?}", config_path);
+        // Windows system
+        #[cfg(target_os = "windows")]
+        if path.starts_with("%USERPROFILE%") {
+            let relative_path = path.strip_prefix("%USERPROFILE%/").unwrap_or(Path::new(""));
+            return Some(home.join(PathBuf::from(relative_path)));
+        }
     }
 
-    let content = std::fs::read_to_string(config_path)?;
-    let mut config: Config = serde_yaml::from_str(&content)?;
+    Some(PathBuf::from(path))
+}
 
-    // Populate aliases and environments
+pub fn apply_default_config() -> Result<()> {
+    let config_path = deal_config_path(DEFAULT_CONFIG_PATH).unwrap();
+
+    // Copy configs/sample.yml to `config_path`
+    let sample_config = Configs::get(SAMPLE_CONFIG_FILE_PATH);
+    if sample_config.is_none() {
+        return Err(eyre!("Sample config not found"));
+    }
+
+    let sample_config = sample_config.unwrap();
+    std::fs::create_dir_all(config_path.parent().unwrap())?;
+    std::fs::write(&config_path, sample_config.data)?;
+
+    info!("No config file found, apply the sample config file to: {:?}", config_path);
+    Ok(())
+}
+
+pub fn loads() -> Result<Config> {
+    let config_paths = get_config_paths();
+    if config_paths.is_empty() {
+        return Err(eyre!("No config file are set"));
+    }
+
+    // iterate all config files and merge them.
+    let mut config = Config {
+        databases: Vec::new(),
+        templates: HashMap::new(),
+        aliases: HashMap::new(),
+        environments: HashMap::new(),
+    };
+
+    for config_path in config_paths {
+        match load_config(&config_path) {
+            Ok(incoming) => {
+                config.databases.extend(incoming.databases);
+                config.templates.extend(incoming.templates);
+            }
+            Err(e) => {
+                warn!("Failed to load config file: {:?}, error: {:?}", config_path, e)
+            }
+        }
+    }
+
+    // Populate aliases and environments, and warn about duplicates.
     for db in &config.databases {
+        if config.aliases.contains_key(&db.alias) {
+            warn!("Duplicate alias found: {}", &db.alias);
+        }
+
         config.aliases.insert(db.alias.clone(), db.clone());
         config.environments
             .entry(db.env.clone())
             .or_default()
             .push(db.clone());
     }
+
     Ok(config)
+}
+
+fn load_config(config_path: &PathBuf) -> Result<Config> {
+    match std::fs::read_to_string(config_path) {
+        Ok(content) => {
+            match serde_yaml::from_str(&content) {
+                Ok(config) => Ok(config),
+                Err(e) => {
+                    error!("Failed to parse config file: {:?}, error: {:?}", config_path, e);
+                    Err(e.into())
+                }
+            }
+        }
+        Err(e) => {
+            error!("Failed to read config file: {:?}, error: {:?}", config_path, e);
+            Err(e.into())
+        }
+    }
 }
 
 impl Database {
@@ -122,18 +213,18 @@ impl Database {
         Ok(variables)
     }
 
-    pub fn validate_connection_string(&self, cfg: &Config) -> Result<bool> {
-        let template = cfg.templates.get(&self.db_type).ok_or_else(|| {
-            eyre!("No template found for database type: {}", self.db_type)
-        })?;
-
-        let vars = self.variables(&template.dsn);
-        if let Err(e) = vars {
-            return Err(e);
-        }
-
-        Ok(true)
-    }
+    // pub fn validate_connection_string(&self, cfg: &Config) -> Result<bool> {
+    //     let template = cfg.templates.get(&self.db_type).ok_or_else(|| {
+    //         eyre!("No template found for database type: {}", self.db_type)
+    //     })?;
+    //
+    //     let vars = self.variables(&template.dsn);
+    //     if let Err(e) = vars {
+    //         return Err(e);
+    //     }
+    //
+    //     Ok(true)
+    // }
 }
 
 
@@ -193,46 +284,4 @@ pub fn list_connections(
     if found_databases == 0 {
         println!("{}", style("No databases found.").red());
     }
-}
-
-
-pub fn add_connection(
-    config_path: &PathBuf,
-    config: &mut Config,
-    db_type: &str,
-    url: &str,
-    env: &str,
-    alias: &str,
-    description: Option<String>,
-) -> Result<()> {
-    let db = Database {
-        db_type: db_type.to_string(),
-        dsn: url.to_string(),
-        env: env.to_string(),
-        alias: alias.to_string(),
-        description: Option::from(description.unwrap().to_string()),
-        metadata: None,
-    };
-
-    // Make sure the alias is unique
-    if config.aliases.contains_key(alias) {
-        return Err(eyre!("Alias '{}' already exists", alias));
-    }
-
-    if let Err(e) = db.validate_connection_string(config) {
-        return Err(e);
-    }
-
-    // save the connection config to the config file.
-    config.databases.push(db.clone());
-
-    let content = serialize_config(&config)?;
-    std::fs::write(config_path, content)?;
-
-    info!("Added new database connection with type '{}'.", db_type);
-    Ok(())
-}
-
-pub fn serialize_config(config: &Config) -> Result<String> {
-    Ok(serde_yaml::to_string(config)?)
 }
