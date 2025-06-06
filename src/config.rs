@@ -39,7 +39,7 @@ pub struct Database {
     // Description of the connection for human-readable.
     pub description: Option<String>,
     // metadata for the connection.
-    // e.g. { "region": "us-west-1", "account_id": "123456789012" }
+    // e.g. { "region": "us-west-1", "account_id": "123,456,789,012" }
     // e.g. { "redis-sentinel": "1", "master-name": "my-master" } for redis sentinel.
     pub metadata: Option<HashMap<String, String>>,
 }
@@ -174,7 +174,6 @@ fn load_config(config_path: &PathBuf) -> Result<Config> {
             }
         }
         Err(e) => {
-            error!("Failed to read config file: {:?}, error: {:?}", config_path, e);
             Err(e.into())
         }
     }

@@ -1,6 +1,8 @@
 -- $HOME/.dbhub/mysql.lua
 -- Using LUA 5.4
 
+local variables = dbhub.variables
+
 local optional_password = ""
 if variables.password and variables.password ~= "" then
     optional_password = string.format("-p%s", variables.password)
@@ -11,5 +13,10 @@ if variables.database and variables.database ~= "" then
     optional_database = string.format("--database=%s", variables.database)
 end
 
-return string.format("mysqlsh -h %s -P %d -u %s %s --database=%s",
-variables.host, variables.port, variables.user, optional_password, optional_database)
+local args = string.format("mysqlsh -h %s -P %d -u %s %s --database=%s",
+             variables.host, variables.port, variables.user, optional_password, optional_database)
+
+return {
+    command_with_args = args,
+    again = false
+}

@@ -15,16 +15,21 @@
 --     key2: value2
 --
 -- Then the script would receive the following variables:
---
---   variables:
---     dsn: mysql://root:password@localhost:3306/mydb
---     user: root
---     password: password
---     host: localhost
---     port: 3306
---     database: mydb
---     meta_key1: value1
---     meta_key2: value2
+-- dbhub {
+--   count => number
+--   variables => table(hashmap)
+--   last_output_lines => table(array)
+-- }
 --
 
-return string.format("sample-cli -h %s -P %d -u %s -p%s --database=%s", variables.host, variables.port, variables.user, variables.password, variables.database)
+print("dbhub #?", dbhub)
+
+local variables = dbhub.variables
+
+local args = string.format("sample-cli -h %s -P %d -u %s -p%s --database=%s",
+    variables.host, variables.port, variables.user, variables.password, variables.database)
+
+return {
+    command_with_args = args,
+    again = false
+}

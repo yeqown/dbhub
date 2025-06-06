@@ -1,6 +1,8 @@
 -- $HOME/.dbhub/mysql.lua
 -- Using LUA 5.4
 
+local variables = dbhub.variables
+
 local optional_password = ""
 if variables.password and variables.password ~= "" then
     optional_password = string.format("-a %s", variables.password)
@@ -11,4 +13,9 @@ if variables.database and variables.database ~= "" then
     database = variables.database
 end
 
-return string.format("redis-cli -h %s -p %d %s -n %d", variables.host, variables.port, optional_password, database)
+local args = string.format("redis-cli -h %s -p %d %s -n %d", variables.host, variables.port, optional_password, database)
+
+return {
+    command_with_args = args,
+    again = false
+}
