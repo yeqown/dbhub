@@ -1,5 +1,19 @@
 # DB Hub
 
+[![GitHub release](https://img.shields.io/github/release/yeqown/dbhub.svg?style=flat-square)](https://github.com/yeqown/dbhub/releases/latest)
+[![GitHub license](https://img.shields.io/github/license/yeqown/dbhub.svg?style=flat-square)](https://github.com/yeqown/dbhub/blob/main/LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/yeqown/dbhub.svg?style=flat-square)](https://github.com/yeqown/dbhub/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/yeqown/dbhub.svg?style=flat-square)](https://github.com/yeqown/dbhub/network)
+[![GitHub issues](https://img.shields.io/github/issues/yeqown/dbhub.svg?style=flat-square)](https://github.com/yeqown/dbhub/issues)
+[![GitHub pull requests](https://img.shields.io/github/issues-pr/yeqown/dbhub.svg?style=flat-square)](https://github.com/yeqown/dbhub/pulls)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/yeqown/dbhub/release.yml?style=flat-square)](https://github.com/yeqown/dbhub/actions/workflows/release.yml)
+[![Coverage Status](https://img.shields.io/codecov/c/github/yeqown/dbhub?style=flat-square)](https://app.codecov.io/gh/yeqown/dbhub)
+[![Rust](https://img.shields.io/badge/rust-%23000000.svg?style=flat-square&logo=rust&logoColor=white)](https://www.rust-lang.org/)
+[![Contributors](https://img.shields.io/github/contributors/yeqown/dbhub.svg?style=flat-square)](https://github.com/yeqown/dbhub/graphs/contributors)
+[![Last Commit](https://img.shields.io/github/last-commit/yeqown/dbhub.svg?style=flat-square)](https://github.com/yeqown/dbhub/commits/main)
+[![Dependabot](https://badgen.net/github/dependabot/yeqown/dbhub?icon=dependabot&style=flat-square)](https://github.com/yeqown/dbhub/network/updates)
+
+
 一个用于管理多环境、多数据库连接的命令行工具。支持 MySQL、MongoDB、DocumentDB、Doris 和 Redis 数据库的连接管理。
 
 ## 特性
@@ -14,7 +28,7 @@
 
 ## 安装
 
-从 [GitHub Releases](https://github.com/your-username/dbhub/releases) 下载适合你系统的二进制文件：
+从 [GitHub Releases](https://github.com/yeqown/dbhub/releases) 下载适合你系统的二进制文件：
 
 - Linux: `dbhub-linux-amd64.tar.gz` 或 `dbhub-linux-arm64.tar.gz`
 - macOS: `dbhub-darwin-amd64.tar.gz` 或 `dbhub-darwin-arm64.tar.gz`
