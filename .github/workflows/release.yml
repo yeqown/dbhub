@@ -40,6 +40,27 @@ jobs:
         with:
           targets: ${{ matrix.target }}
 
+      - name: Install Lua 5.4 development library
+        run: |
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            sudo apt-get update
+            sudo apt-get install -y liblua5.4-dev
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            brew install lua@5.4
+          elif [[ "${{ runner.os }}" == "Windows" ]]; then
+            choco install lua
+          fi
+        shell: bash
+
+      - name: Set PKG_CONFIG_PATH
+        run: |
+          if [[ "${{ runner.os }}" == "Linux" ]]; then
+            echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
+          elif [[ "${{ runner.os }}" == "macOS" ]]; then
+            echo "PKG_CONFIG_PATH=$(brew --prefix lua@5.4)/lib/pkgconfig" >> $GITHUB_ENV
+          fi
+        shell: bash
+
       - name: Install cross-compilation tools
         if: runner.os == 'Linux' && contains(matrix.target, 'aarch64')
         run: |
