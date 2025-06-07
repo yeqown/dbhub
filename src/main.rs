@@ -11,7 +11,6 @@ fn main() -> Result<()> {
     color_eyre::install()?;
     tracing_subscriber::fmt::init();
 
-
     let matches = cli::build_cli().get_matches();
 
     // load config from a file

@@ -1,15 +1,14 @@
 use crate::config::{Config, Database};
 use crate::embedded::Scripts;
-use color_eyre::eyre::{eyre, Result};
+use color_eyre::eyre::{Result, eyre};
 use dirs;
 use mlua::{FromLua, Lua, Value};
 use shell_words;
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::process::Command;
+use std::process::{Command, Stdio};
 use tracing::{debug, info, warn};
 use which::which;
-
 
 /// Connect to a database using environment and database name
 ///
@@ -33,51 +32,70 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
     let mut counter = 0;
     while counter < 5 {
         let output = run_lua_with(&lua_script_path, &variables, &last_output_lines, counter)?;
-        info!("#{} Running command: \n\n\t💻 -> {}\n", counter, output.command_with_args);
+        info!(
+            "#{} Running command: \n\n\t💻 -> {}\n",
+            counter, output.command_with_args
+        );
         let args = shell_words::split(&output.command_with_args)?;
         let command = args.first().ok_or_else(|| eyre!("No command provided"))?;
         which(command).map_err(|_| {
-            eyre!("Command `{}` not found, please install it or check yout PATH.", command)
+            eyre!(
+                "Command `{}` not found, please install it or check yout PATH.",
+                command
+            )
         })?;
 
+        counter += 1;
         last_output_lines.clear();
 
         if output.again {
             let output = Command::new(command)
                 .args(&args[1..])
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
                 .spawn()?
                 .wait_with_output()?;
-            // split stdout by line
+
+            if !output.status.success() {
+                return Err(eyre!(
+                    "Command `{}` failed: {}",
+                    command,
+                    String::from_utf8(output.stderr)?
+                ));
+            }
+
+            debug!(
+                "Command `{}` output: {}",
+                command,
+                String::from_utf8(output.stdout.clone())?
+            );
+
             let output_lines = String::from_utf8(output.stdout)?;
             for line in output_lines.trim().split("\n").collect::<Vec<_>>() {
                 last_output_lines.push(String::from(line));
             }
-        } else {
-            // DONE(@yeqown): open another shell to execute the interactive command.
-            //  and then exit the current shell.
-            Command::new(command)
-                .args(&args[1..])
-                .stdin(std::process::Stdio::inherit())
-                .stdout(std::process::Stdio::inherit())
-                .stderr(std::process::Stdio::inherit())
-                .spawn()?
-                .wait()?;
-
-            info!("The connection has been closed.");
-
-            return Ok(());
+            continue;
         }
 
-        counter += 1;
-    }
+        // DONE(@yeqown): open another shell to execute the interactive command.
+        //  and then exit the current shell.
+        Command::new(command)
+            .args(&args[1..])
+            .stdin(std::process::Stdio::inherit())
+            .stdout(std::process::Stdio::inherit())
+            .stderr(std::process::Stdio::inherit())
+            .spawn()?
+            .wait()?;
 
+        info!("The connection has been closed.");
+        return Ok(());
+    }
 
     Err(eyre!("Script execution over 5 times"))
 }
 
 fn locate_lua_script(db_type: &str) -> Result<PathBuf> {
-    let home_dir = dirs::home_dir()
-        .ok_or_else(|| eyre!("Failed to get home directory"))?;
+    let home_dir = dirs::home_dir().ok_or_else(|| eyre!("Failed to get home directory"))?;
 
     let lua_script = format!("{}.lua", db_type);
     let lua_script_path = home_dir.join(".dbhub").join(lua_script.clone());
@@ -95,7 +113,10 @@ fn locate_lua_script(db_type: &str) -> Result<PathBuf> {
         std::fs::create_dir_all(lua_script_path.parent().unwrap())?;
         std::fs::write(&lua_script_path, file.unwrap().data.as_ref())?;
 
-        info!("No lua script found, apply the default script to: {:?}", lua_script_path);
+        info!(
+            "No lua script found, apply the default script to: {:?}",
+            lua_script_path
+        );
     }
 
     Ok(lua_script_path)
@@ -103,7 +124,7 @@ fn locate_lua_script(db_type: &str) -> Result<PathBuf> {
 
 struct LuaOutput {
     command_with_args: String, // The command line needs to be executed.
-    again: bool, // Whether to run the script again.
+    again: bool,               // Whether to run the script again.
 }
 
 impl<'lua> FromLua for LuaOutput {
@@ -126,14 +147,12 @@ impl<'lua> FromLua for LuaOutput {
     }
 }
 
-
 fn run_lua_with(
     lua_script_path: &PathBuf,
     variables: &HashMap<String, String>,
     last_output_lines: &Vec<String>,
     count: usize,
 ) -> Result<LuaOutput> {
-
     let lua_state = LuaState {
         count,
         variables: variables.clone(),
@@ -166,11 +185,17 @@ fn try_execute_lua(lua_script_path: &PathBuf, state: &LuaState) -> Result<LuaOut
                 Ok(lua_variables) => {
                     for (key, value) in &state.variables {
                         if let Err(e) = lua_variables.set(key.clone(), value.clone()) {
-                            warn!("Runtime error: could not set '{}' to lua variables table: {}", key, e);
+                            warn!(
+                                "Runtime error: could not set '{}' to lua variables table: {}",
+                                key, e
+                            );
                         }
                     }
                     if let Err(e) = lua_state.set("variables", lua_variables) {
-                        warn!("Runtime error: could not set 'variables' to lua state table: {}", e);
+                        warn!(
+                            "Runtime error: could not set 'variables' to lua state table: {}",
+                            e
+                        );
                     }
                 }
                 Err(e) => {
@@ -183,15 +208,24 @@ fn try_execute_lua(lua_script_path: &PathBuf, state: &LuaState) -> Result<LuaOut
                 Ok(lua_last_output_lines) => {
                     for (i, line) in state.last_output_lines.iter().enumerate() {
                         if let Err(e) = lua_last_output_lines.set(i + 1, line.clone()) {
-                            warn!("Runtime error: could not set line {} to lua last_output_lines table: {}", i, e);
+                            warn!(
+                                "Runtime error: could not set line {} to lua last_output_lines table: {}",
+                                i, e
+                            );
                         }
                     }
                     if let Err(e) = lua_state.set("last_output_lines", lua_last_output_lines) {
-                        warn!("Runtime error: could not set 'last_output_lines' to lua state table: {}", e);
+                        warn!(
+                            "Runtime error: could not set 'last_output_lines' to lua state table: {}",
+                            e
+                        );
                     }
                 }
                 Err(e) => {
-                    warn!("Runtime error: could not create lua last_output_lines table: {}", e);
+                    warn!(
+                        "Runtime error: could not create lua last_output_lines table: {}",
+                        e
+                    );
                 }
             }
 
@@ -205,11 +239,10 @@ fn try_execute_lua(lua_script_path: &PathBuf, state: &LuaState) -> Result<LuaOut
     }
 
     match lua.load(lua_script_path.clone()).eval() {
-        Ok(result) => {
-            Ok(result)
-        }
-        Err(err) => {
-            Err(eyre!("Runtime error: could not execute lua script: {}", err))
-        }
+        Ok(result) => Ok(result),
+        Err(err) => Err(eyre!(
+            "Runtime error: could not execute lua script: {}",
+            err
+        )),
     }
 }

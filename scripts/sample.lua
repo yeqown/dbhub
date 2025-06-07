@@ -22,6 +22,11 @@
 -- }
 --
 
+assert(dbhub ~= nil, "dbhub is not defined")
+assert(dbhub.variables ~= nil, "dbhub.variables is not defined")
+assert(dbhub.count ~= nil, "dbhub.count is not defined")
+assert(dbhub.last_output_lines ~= nil, "dbhub.last_output_lines is not defined")
+
 print("dbhub #?", dbhub)
 
 local variables = dbhub.variables
