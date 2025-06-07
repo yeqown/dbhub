@@ -38,10 +38,10 @@ pub struct Database {
     // Optionally fields
     // Description of the connection for human-readable.
     pub description: Option<String>,
-    // metadata for the connection.
+    // annotations for the connection.
     // e.g. { "region": "us-west-1", "account_id": "123,456,789,012" }
     // e.g. { "redis-sentinel": "1", "master-name": "my-master" } for redis sentinel.
-    pub metadata: Option<HashMap<String, String>>,
+    pub annotations: Option<HashMap<String, String>>,
 }
 
 impl Config {
@@ -181,14 +181,13 @@ fn load_config(config_path: &PathBuf) -> Result<Config> {
 
 impl Database {
     // Parse the variables from the connection string. Including
-    // the metadata, and the connection url itself as dsn.
-    pub fn variables(&self, dsn_template: &str) -> Result<HashMap<String, String>> {
-        let mut variables = HashMap::new();
-
+    // the annotations, and the connection url itself as dsn.
+    pub fn variables(&self, dsn_template: &str) -> Result<(HashMap<String, String>, HashMap<String, String>)> {
         // Parse the connection url and extract the variables.
         // e.g. mysql://{user}:{password}@{host}:{port}/{database}
         // return a HashMap of variables.
         // E.g. { "user": "root", "password": "root", "host": "localhost", "port": "3306", "database": "test" }
+        let mut variables = HashMap::new();
         let vars = crate::template::parse_variables(&dsn_template, &self.dsn);
         if let Some(vars) = vars {
             for (key, value) in vars {
@@ -197,19 +196,18 @@ impl Database {
         } else {
             return Err(eyre!("Could not parse variables: {} !!!",self.dsn));
         }
-
-        // Add metadata to the variables, but the key starts with "meta_".
-        if let Some(metadata) = &self.metadata {
-            for (key, value) in metadata {
-                let meta_key = format!("meta_{}", key);
-                variables.insert(meta_key, value.clone());
-            }
-        }
-
         // Add the connection url itself as dsn.
         variables.insert("dsn".to_string(), self.dsn.clone());
 
-        Ok(variables)
+        let mut annotations = HashMap::new();
+        // Add annotations to the variables, but the key starts with "meta_".
+        if let Some(annos) = &self.annotations {
+            for (key, value) in annos {
+                annotations.insert(key.clone(), value.clone());
+            }
+        }
+
+        Ok((variables, annotations))
     }
 
     // pub fn validate_connection_string(&self, cfg: &Config) -> Result<bool> {

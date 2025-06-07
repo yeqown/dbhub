@@ -25,13 +25,19 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
         return Err(eyre!("No template found for database type: {}", db.db_type));
     }
     let tpl = template.unwrap();
-    let variables = db.variables(tpl.dsn.as_str())?;
+    let (variables, annotations) = db.variables(tpl.dsn.as_str())?;
     let mut last_output_lines: Vec<String> = vec![];
     let lua_script_path = locate_lua_script(db.db_type.as_str())?;
 
     let mut counter = 0;
     while counter < 5 {
-        let output = run_lua_with(&lua_script_path, &variables, &last_output_lines, counter)?;
+        let output = run_lua_with(
+            &lua_script_path,
+            &variables,
+            &annotations,
+            &last_output_lines,
+            counter,
+        )?;
         info!(
             "#{} Running command: \n\n\t💻 -> {}\n",
             counter, output.command_with_args
@@ -150,12 +156,14 @@ impl<'lua> FromLua for LuaOutput {
 fn run_lua_with(
     lua_script_path: &PathBuf,
     variables: &HashMap<String, String>,
+    annotations: &HashMap<String, String>,
     last_output_lines: &Vec<String>,
     count: usize,
 ) -> Result<LuaOutput> {
     let lua_state = LuaState {
         count,
         variables: variables.clone(),
+        anotations: annotations.clone(),
         last_output_lines: last_output_lines.clone(),
     };
 
@@ -166,83 +174,105 @@ fn run_lua_with(
 struct LuaState {
     count: usize,
     variables: HashMap<String, String>,
+    anotations: HashMap<String, String>,
     last_output_lines: Vec<String>,
 }
-
 fn try_execute_lua(lua_script_path: &PathBuf, state: &LuaState) -> Result<LuaOutput> {
     let lua = Lua::new();
     let globals = lua.globals();
 
-    match lua.create_table() {
-        Ok(lua_state) => {
-            // Set the count in the table
-            if let Err(e) = lua_state.set("count", state.count) {
-                warn!("Runtime error: could not set 'count' to lua table: {}", e);
-            }
+    let lua_state = match lua.create_table() {
+        Ok(table) => table,
+        Err(e) => return Err(eyre!("Runtime error: could not create lua table: {}", e)),
+    };
 
-            // Set the variables in the table
-            match lua.create_table() {
-                Ok(lua_variables) => {
-                    for (key, value) in &state.variables {
-                        if let Err(e) = lua_variables.set(key.clone(), value.clone()) {
-                            warn!(
-                                "Runtime error: could not set '{}' to lua variables table: {}",
-                                key, e
-                            );
-                        }
-                    }
-                    if let Err(e) = lua_state.set("variables", lua_variables) {
-                        warn!(
-                            "Runtime error: could not set 'variables' to lua state table: {}",
-                            e
-                        );
-                    }
-                }
-                Err(e) => {
-                    warn!("Runtime error: could not create lua variables table: {}", e);
-                }
-            }
+    // Set count
+    set_lua_table_value(
+        &lua_state,
+        mlua::Value::String(lua.create_string("count").unwrap()),
+        mlua::Value::Integer(state.count as i64),
+    );
 
-            // Set the last_output_lines in the table
-            match lua.create_table() {
-                Ok(lua_last_output_lines) => {
-                    for (i, line) in state.last_output_lines.iter().enumerate() {
-                        if let Err(e) = lua_last_output_lines.set(i + 1, line.clone()) {
-                            warn!(
-                                "Runtime error: could not set line {} to lua last_output_lines table: {}",
-                                i, e
-                            );
-                        }
-                    }
-                    if let Err(e) = lua_state.set("last_output_lines", lua_last_output_lines) {
-                        warn!(
-                            "Runtime error: could not set 'last_output_lines' to lua state table: {}",
-                            e
-                        );
-                    }
-                }
-                Err(e) => {
-                    warn!(
-                        "Runtime error: could not create lua last_output_lines table: {}",
-                        e
-                    );
-                }
-            }
-
-            if let Err(e) = globals.set("dbhub", lua_state) {
-                warn!("Runtime error: could not set 'dbhub' to lua globals: {}", e);
-            }
-        }
-        Err(e) => {
-            return Err(eyre!("Runtime error: could not create lua table: {}", e));
-        }
+    // Set variables
+    if let Ok(lua_variables) = create_and_fill_lua_table(
+        &lua,
+        state.variables.iter().map(|(k, v)| {
+            (
+                mlua::Value::String(lua.create_string(k).unwrap()),
+                mlua::Value::String(lua.create_string(v).unwrap()),
+            )
+        }),
+    ) {
+        set_lua_table_value(
+            &lua_state,
+            mlua::Value::String(lua.create_string("variables").unwrap()),
+            mlua::Value::Table(lua_variables),
+        );
     }
+
+    // Set anotations
+    if let Ok(lua_anotations) = create_and_fill_lua_table(
+        &lua,
+        state.anotations.iter().map(|(k, v)| {
+            (
+                mlua::Value::String(lua.create_string(k).unwrap()),
+                mlua::Value::String(lua.create_string(v).unwrap()),
+            )
+        }),
+    ) {
+        set_lua_table_value(
+            &lua_state,
+            mlua::Value::String(lua.create_string("annotations").unwrap()),
+            mlua::Value::Table(lua_anotations),
+        )
+    }
+
+    // Set last_output_lines
+    if let Ok(lua_last_output_lines) = create_and_fill_lua_table(
+        &lua,
+        state.last_output_lines.iter().enumerate().map(|(i, line)| {
+            (
+                mlua::Value::Integer((i + 1) as i64),
+                mlua::Value::String(lua.create_string(line).unwrap()),
+            )
+        }),
+    ) {
+        set_lua_table_value(
+            &lua_state,
+            mlua::Value::String(lua.create_string("last_output_lines").unwrap()),
+            mlua::Value::Table(lua_last_output_lines),
+        );
+    }
+
+    // Set dbhub to global variables
+    set_lua_table_value(
+        &globals,
+        mlua::Value::String(lua.create_string("dbhub").unwrap()),
+        mlua::Value::Table(lua_state),
+    );
 
     match lua.load(lua_script_path.clone()).eval() {
         Ok(result) => Ok(result),
         Err(err) => Err(eyre!(
-            "Runtime error: could not execute lua script: {}",
+            "Lua script failed: {}",
             err
         )),
     }
+}
+
+fn set_lua_table_value(lua_table: &mlua::Table, key: mlua::Value, value: mlua::Value) {
+    if let Err(e) = lua_table.set(key, value) {
+        warn!("Runtime error: could not set key to lua table: {}", e);
+    }
+}
+
+fn create_and_fill_lua_table(
+    lua: &Lua,
+    entries: impl IntoIterator<Item = (mlua::Value, mlua::Value)>,
+) -> mlua::Result<mlua::Table> {
+    let lua_table = lua.create_table()?;
+    for (key, value) in entries {
+        set_lua_table_value(&lua_table, key, value);
+    }
+    Ok(lua_table)
 }

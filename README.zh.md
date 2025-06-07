@@ -63,14 +63,14 @@ Options:
 #
 #   - `description`: A string to describe the database detailed.
 #
-#   - `metadata`: A Key-Value map of metadata for the database.
+#   - `annotations`: A Key-Value map of annotations for the database.
 databases:
   - alias: my-local-mysql
     db_type: mysql
     dsn: "mysql://root:root@tcp(localhost:3306)/db?parseTime=True"
     env: local
     description: "The local mysql database for quickly testing dbhub CLI."
-    metadata:
+    annotations:
       mysql: "1"
       version: "8.0.32"
   - alias: my-local-mongo
@@ -78,7 +78,7 @@ databases:
     dsn: "mongodb://user:password@localhost:27017/db"
     env: local
     description: "The local mongo database for quickly testing dbhub CLI."
-    metadata:
+    annotations:
       mongo: "1"
       version: "6.0.1"
   - alias: my-local-redis
@@ -86,7 +86,7 @@ databases:
     dsn: "redis://user:password@localhost:6379/0"
     env: local
     description: "The local redis database for quickly testing dbhub CLI."
-    metadata:
+    annotations:
       redis: "1"
       version: "7.2.1"
 

@@ -6,7 +6,12 @@ assert(dbhub.variables ~= nil, "dbhub.variables is not defined")
 assert(dbhub.count ~= nil, "dbhub.count is not defined")
 assert(dbhub.last_output_lines ~= nil, "dbhub.last_output_lines is not defined")
 
+assert(dbhub.annotations ~= nil, "dbhub.annotations is not defined")
+
 local variables = dbhub.variables
+local anotations = dbhub.annotations
+
+local master_name_key = "redis-sentinel/mastername"
 
 -- step1: get master from sentinel, support 3 sentinels at most.
 local function get_master()
@@ -20,9 +25,13 @@ local function get_master()
     end
 
     local selected = #hosts > 0 and hosts[math.random(#hosts)] or { host = "", port = "" }
-    -- Get the master name from the `metadata.master_name` variable.
+    -- Get the master name from the `annotations.master_name` variable.
     -- If it's not set, use the default value "mymaster".
-    local master_name = variables.meta_master_name and variables.meta_master_name ~= "" and variables.meta_master_name or "mymaster"
+    local master_name = "mymaster"
+    if anotations[master_name_key] and anotations[master_name_key] ~= "" then
+        master_name = anotations[master_name_key]
+    end
+    
     return string.format("redis-cli -h %s -p %s sentinel get-master-addr-by-name %s", selected.host, selected.port, master_name)
 end
 
