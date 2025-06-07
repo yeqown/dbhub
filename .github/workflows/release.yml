@@ -4,6 +4,9 @@ on:
   release:
     types: [created]
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Release
@@ -46,9 +49,14 @@ jobs:
           fi
         shell: bash
 
-      - name: Set PKG_CONFIG_PATH
+      - name: Set PKG_CONFIG environment variables
         run: |
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
+          if [[ "${{ runner.os }}" == "Linux" && "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
+            # Set sysroot and pkg-config path for cross-compilation
+            SYSROOT="/usr/aarch64-linux-gnu"
+            echo "PKG_CONFIG_SYSROOT_DIR=$SYSROOT" >> $GITHUB_ENV
+            echo "PKG_CONFIG_PATH=$SYSROOT/lib/pkgconfig" >> $GITHUB_ENV
+          elif [[ "${{ runner.os }}" == "Linux" ]]; then
             echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
             echo "PKG_CONFIG_PATH=$(brew --prefix lua@5.4)/lib/pkgconfig" >> $GITHUB_ENV
@@ -60,6 +68,8 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gcc-aarch64-linux-gnu
+          # Install cross-compiled Lua development libraries if necessary
+          sudo apt-get install -y liblua5.4-dev:arm64
 
       - name: Build
         run: |
