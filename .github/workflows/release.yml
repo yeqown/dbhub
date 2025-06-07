@@ -48,13 +48,12 @@ jobs:
 
       - name: Build
         run: |
-          cd dbhub
           cargo build --release --target ${{ matrix.target }}
 
       - name: Prepare artifact
         shell: bash
         run: |
-          cd dbhub/target/${{ matrix.target }}/release/
+          cd target/${{ matrix.target }}/release/
           if [ "${{ runner.os }}" = "Windows" ]; then
             7z a ../../../${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
           else
@@ -65,6 +64,6 @@ jobs:
         uses: softprops/action-gh-release@v1
         with:
           files: |
-            dbhub/${{ matrix.asset_name }}.*
+            ${{ matrix.asset_name }}.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
