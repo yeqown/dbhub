@@ -13,6 +13,7 @@
 [![Last Commit](https://img.shields.io/github/last-commit/yeqown/dbhub.svg?style=flat-square)](https://github.com/yeqown/dbhub/commits/main)
 [![Dependabot](https://badgen.net/github/dependabot/yeqown/dbhub?icon=dependabot&style=flat-square)](https://github.com/yeqown/dbhub/network/updates)
 
+![demo](./carbon.svg)
 
 一个用于管理多环境、多数据库连接的命令行工具。支持 MySQL、MongoDB、DocumentDB、Doris 和 Redis 数据库的连接管理。
 

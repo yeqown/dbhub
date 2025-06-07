@@ -12,6 +12,7 @@
 [![Last Commit](https://img.shields.io/github/last-commit/yeqown/dbhub.svg?style=flat-square)](https://github.com/yeqown/dbhub/commits/main)
 [![Dependabot](https://badgen.net/github/dependabot/yeqown/dbhub?icon=dependabot&style=flat-square)](https://github.com/yeqown/dbhub/network/updates)
 
+![demo](./carbon.svg)
 
 A command-line tool for managing multiple database connections across different environments. Supports MySQL, MongoDB,
 DocumentDB, Doris, and Redis databases.
