@@ -27,10 +27,6 @@ jobs:
             target: aarch64-apple-darwin
             artifact_name: dbhub
             asset_name: dbhub-darwin-arm64
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            artifact_name: dbhub.exe
-            asset_name: dbhub-windows-amd64.exe
 
     steps:
       - uses: actions/checkout@v4
@@ -47,8 +43,6 @@ jobs:
             sudo apt-get install -y liblua5.4-dev
           elif [[ "${{ runner.os }}" == "macOS" ]]; then
             brew install lua@5.4
-          elif [[ "${{ runner.os }}" == "Windows" ]]; then
-            choco install lua
           fi
         shell: bash
 
@@ -75,16 +69,14 @@ jobs:
         shell: bash
         run: |
           cd target/${{ matrix.target }}/release/
-          if [ "${{ runner.os }}" = "Windows" ]; then
-            7z a ../../../${{ matrix.asset_name }}.zip ${{ matrix.artifact_name }}
-          else
-            tar czf ../../../${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
-          fi
+          tar czf ../../../${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
 
       - name: Upload Release Asset
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            ${{ matrix.asset_name }}.*
+        uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: "./${{ matrix.asset_name }}.tar.gz"
+          asset_name: "${{ matrix.asset_name }}.tar.gz"
+          asset_content_type: application/gzip
