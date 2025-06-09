@@ -18,7 +18,7 @@ if variables.database and variables.database ~= "" then
     optional_database = string.format("--database=%s", variables.database)
 end
 
-local args = string.format("mysqlsh -h %s -P %d -u %s %s --database=%s",
+local args = string.format("mysqlsh -h %s -P %d -u %s %s %s",
              variables.host, variables.port, variables.user, optional_password, optional_database)
 
 return {
