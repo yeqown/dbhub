@@ -29,11 +29,13 @@
 
 ## 安装
 
-从 [GitHub Releases](https://github.com/yeqown/dbhub/releases) 下载适合你系统的二进制文件：
+使用 cargo binstall/install 直接安装
 
-- Linux: `dbhub-linux-amd64.tar.gz` 或 `dbhub-linux-arm64.tar.gz`
-- macOS: `dbhub-darwin-amd64.tar.gz` 或 `dbhub-darwin-arm64.tar.gz`
-- Windows: `dbhub-windows-amd64.exe.zip`
+```shell
+cargo binstall dbhub
+# or 
+cargo install dbhub 
+```
 
 ## 使用方法
 

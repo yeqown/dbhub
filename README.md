@@ -32,11 +32,11 @@ DocumentDB, Doris, and Redis databases.
 
 ## Installation
 
-Download the appropriate binary for your system from [GitHub Releases](https://github.com/yeqown/dbhub/releases):
-
-- Linux: `dbhub-linux-amd64.tar.gz` or `dbhub-linux-arm64.tar.gz`
-- macOS: `dbhub-darwin-amd64.tar.gz` or `dbhub-darwin-arm64.tar.gz`
-- Windows: `dbhub-windows-amd64.exe.zip`
+```shell
+cargo binstall dbhub
+# or 
+cargo install dbhub 
+```
 
 ## Usage
 
