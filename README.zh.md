@@ -104,6 +104,20 @@ databases:
     annotations:
       redis: "1"
       version: "7.2.1"
+  - alias: my-local-redis-sentinel
+    db_type: redis-sentinel
+    dsn: "redis://user:password@localhost:6379/0"
+    env: local
+    description: "The local redis sentinel database for quickly testing dbhub CLI."
+    annotations:
+      redis-sentinel/mastername: "mymaster"
+  - alias: my-local-memcached
+    db_type: memcached
+    dsn: "memcached://localhost:11211,localhost:11212"
+    env: local
+    description: "The local memcached database for quickly testing dbhub CLI."
+    annotations:
+      memcached/hash-distribution: "murmur3"
 
 # `templates` section is a list of template related to a specified database type including `dsn` and `cli`.
 # Each template has the following fields:
@@ -119,6 +133,8 @@ templates:
     dsn: mongodb://{user}:{password}@{host}:{port}/{database}?{query}
   redis:
     dsn: redis://{user}:{password}@{host}:{port}/{database}
+  memcached:
+    dsn: memcached://{servers}
 ```
 
 ## 许可证

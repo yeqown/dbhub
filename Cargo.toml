@@ -2,6 +2,15 @@
 name = "dbhub"
 version = "1.0.0"
 edition = "2024"
+authors = ["yeqown@gmail.com"]
+description = """A CLI tool to manage your multi-environment database configurations, and
+easily connect to them. Now it supports MySQL, Redis, Redis Sentinel, MongoDB, Memcached database
+and you can easily add a custom db-type by write a lua scripts.
+"""
+repository = "https://github.com/yeqown/dbhub"
+license = "MIT"
+keywords = ["cli", "database", "lua"]
+categories = ["command-line-utilities"]
 
 [dependencies]
 clap = { version = "4.4", features = ["derive"] }
