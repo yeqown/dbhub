@@ -1,9 +1,7 @@
 use crate::config::{Config, Database};
 use crate::embedded::Scripts;
-use color_eyre::eyre::{Result, eyre};
-use dirs;
+use color_eyre::eyre::{eyre, Result};
 use mlua::{FromLua, Lua, Value};
-use shell_words;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::{Command, Stdio};
@@ -163,7 +161,7 @@ fn run_lua_with(
     let lua_state = LuaState {
         count,
         variables: variables.clone(),
-        anotations: annotations.clone(),
+        annotations: annotations.clone(),
         last_output_lines: last_output_lines.clone(),
     };
 
@@ -174,7 +172,7 @@ fn run_lua_with(
 struct LuaState {
     count: usize,
     variables: HashMap<String, String>,
-    anotations: HashMap<String, String>,
+    annotations: HashMap<String, String>,
     last_output_lines: Vec<String>,
 }
 fn try_execute_lua(lua_script_path: &PathBuf, state: &LuaState) -> Result<LuaOutput> {
@@ -210,10 +208,10 @@ fn try_execute_lua(lua_script_path: &PathBuf, state: &LuaState) -> Result<LuaOut
         );
     }
 
-    // Set anotations
-    if let Ok(lua_anotations) = create_and_fill_lua_table(
+    // Set annotations
+    if let Ok(lua_annotations) = create_and_fill_lua_table(
         &lua,
-        state.anotations.iter().map(|(k, v)| {
+        state.annotations.iter().map(|(k, v)| {
             (
                 mlua::Value::String(lua.create_string(k).unwrap()),
                 mlua::Value::String(lua.create_string(v).unwrap()),
@@ -223,7 +221,7 @@ fn try_execute_lua(lua_script_path: &PathBuf, state: &LuaState) -> Result<LuaOut
         set_lua_table_value(
             &lua_state,
             mlua::Value::String(lua.create_string("annotations").unwrap()),
-            mlua::Value::Table(lua_anotations),
+            mlua::Value::Table(lua_annotations),
         )
     }
 
@@ -268,7 +266,7 @@ fn set_lua_table_value(lua_table: &mlua::Table, key: mlua::Value, value: mlua::V
 
 fn create_and_fill_lua_table(
     lua: &Lua,
-    entries: impl IntoIterator<Item = (mlua::Value, mlua::Value)>,
+    entries: impl IntoIterator<Item=(mlua::Value, mlua::Value)>,
 ) -> mlua::Result<mlua::Table> {
     let lua_table = lua.create_table()?;
     for (key, value) in entries {
