@@ -1,5 +1,6 @@
 use color_eyre::eyre::Result;
 use tracing::warn;
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
 mod config;
 mod tools;
@@ -9,7 +10,22 @@ mod cli;
 
 fn main() -> Result<()> {
     color_eyre::install()?;
-    tracing_subscriber::fmt::init();
+
+    Registry::default()
+        .with(
+            EnvFilter::builder()
+                .with_default_directive(tracing::Level::WARN.into()) // Set the default log level to INFO
+                .from_env_lossy() // Load log level from environment variables
+        )
+        .with(
+            tracing_subscriber::fmt::layer()
+                .with_target(true)
+                .with_level(true)
+                .without_time()
+        )
+        .init();
+
+    // tracing_subscriber::fmt::init();
 
     let matches = cli::build_cli().get_matches();
 
