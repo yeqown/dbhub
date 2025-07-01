@@ -14,7 +14,7 @@ pub struct Config {
     // templates for different database types.
     // key: db_type, value: connection url template.
     // e.g. mysql: mysql://{user}:{password}@{host}:{port}/{database}
-    pub templates: HashMap<String, Template>,
+    pub templates: Option<HashMap<String, Template>>,
 
     // Loaded from config file to help CLI usage. Only saved in MEMORY.
     // key: alias, value: Database config instance.
@@ -47,7 +47,15 @@ pub struct Database {
 impl Config {
     #[allow(unused)]
     pub fn get_all_aliases(&self) -> Vec<&str> {
-        self.aliases.iter().map(|(alias, _)| alias.as_str()).collect()
+        self.aliases.keys().map(|alias| alias.as_str()).collect()
+    }
+
+    pub fn get_mut_templates(&mut self) -> &mut HashMap<String, Template> {
+        self.templates.as_mut().unwrap()
+    }
+
+    pub fn get_templates(&self) -> &HashMap<String, Template> {
+        self.templates.as_ref().unwrap()
     }
 }
 
@@ -129,7 +137,7 @@ pub fn loads() -> Result<Config> {
     // iterate all config files and merge them.
     let mut config = Config {
         databases: Vec::new(),
-        templates: HashMap::new(),
+        templates: Some(HashMap::new()),
         aliases: HashMap::new(),
         environments: HashMap::new(),
     };
@@ -138,7 +146,9 @@ pub fn loads() -> Result<Config> {
         match load_config(&config_path) {
             Ok(incoming) => {
                 config.databases.extend(incoming.databases);
-                config.templates.extend(incoming.templates);
+                if let Some(templates) = incoming.templates {
+                    config.get_mut_templates().extend(templates);
+                }
             }
             Err(e) => {
                 warn!("Failed to load config file: {:?}, error: {:?}", config_path, e)
@@ -263,17 +273,17 @@ pub fn list_connections(
 
     for (env, db_type_map) in grouped_databases {
         let styled_env: StyledObject<&str> = style(env).blue().bold();
-        println!("  {}:", styled_env);
+        println!("  {styled_env}");
 
         for (db_type, db_list) in db_type_map {
             let styled_db_type: StyledObject<&str> = style(db_type).green().bold();
-            println!("    {}:", styled_db_type);
+            println!("    {styled_db_type}");
 
             for db in db_list {
                 found_databases += 1;
                 let alias = format!("⭐️ Alias: {}", style(&db.alias).bold());
                 let desc = format!("📜 Desc : {}", style(db.description.clone().unwrap_or_else(|| "No description".to_string())).dim());
-                println!("      {} \n      {}", alias, desc);
+                println!("      {alias} \n      {desc}");
             }
         }
     }

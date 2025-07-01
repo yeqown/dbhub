@@ -8,9 +8,9 @@ assert(dbhub.last_output_lines ~= nil, "dbhub.last_output_lines is not defined")
 
 local variables = dbhub.variables
 
-local optional_password = ""
+local password = "--no-password"
 if variables.password and variables.password ~= "" then
-    optional_password = string.format("-p%s", variables.password)
+    password = string.format("-p%s", variables.password)
 end
 
 local optional_database = ""
@@ -19,7 +19,7 @@ if variables.database and variables.database ~= "" then
 end
 
 local args = string.format("mysqlsh -h %s -P %d -u %s %s %s",
-             variables.host, variables.port, variables.user, optional_password, optional_database)
+             variables.host, variables.port, variables.user, password, optional_database)
 
 return {
     command_with_args = args,

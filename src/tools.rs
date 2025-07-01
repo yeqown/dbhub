@@ -18,7 +18,7 @@ use which::which;
 ///
 /// * `Result<()>` - Returns `Ok(())` if the connection is successful, otherwise returns an error
 pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
-    let template = cfg.templates.get(db.db_type.as_str());
+    let template = cfg.get_templates().get(db.db_type.as_str());
     if template.is_none() {
         return Err(eyre!("No template found for database type: {}", db.db_type));
     }
