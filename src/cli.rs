@@ -6,6 +6,7 @@ use color_eyre::eyre::Result;
 pub fn build_cli() -> Command {
     let connect_subcommand = Command::new("connect")
         .about("Connect to a database using environment and database name")
+        .alias("c")
         .arg(
             Arg::new("alias")
                 .help("Connection alias")
@@ -16,29 +17,22 @@ pub fn build_cli() -> Command {
 
     let context_subcommand = Command::new("context")
         .about("Manage database connection contexts")
+        .alias("e")
         .arg(
-            Arg::new("list")
-                .long("list")
-                .help("List all available connections")
+            Arg::new("generate")
+                .long("generate")
+                .help("Generate default config file")
                 .action(ArgAction::SetTrue),
         )
         .arg(
-            Arg::new("apply")
-                .long("apply")
-                .help("Apply default config file")
-                .action(ArgAction::SetTrue),
-        )
-        .arg(
-            Arg::new("env")
-                .short('e')
+            Arg::new("filter-env")
                 .long("env")
                 .help("Environment name")
                 .num_args(1)
                 .required(false),
         )
         .arg(
-            Arg::new("db_type")
-                .short('t')
+            Arg::new("filter-db-type")
                 .long("db-type")
                 .help("Database type (mysql, mongodb, redis, redis-sentinel)")
                 .num_args(1)

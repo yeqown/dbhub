@@ -116,7 +116,7 @@ fn deal_config_path(path: &str) -> Option<path::PathBuf> {
     Some(path::PathBuf::from(path))
 }
 
-pub fn apply_default_config() -> Result<()> {
+pub fn generate_default_config() -> Result<()> {
     let config_path = deal_config_path(DEFAULT_CONFIG_PATH).unwrap();
 
     // Copy configs/sample.yml to `config_path`

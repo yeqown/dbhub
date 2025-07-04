@@ -32,7 +32,7 @@ fn main() -> Result<()> {
     // load config from a file
     let cfg = config::loads();
     if cfg.is_err() {
-        warn!("Could not load config file, please check or run `dbhub context --apply` to create.");
+        warn!("Could not load config file, please check or run `dbhub context --generate` to create.");
     }
 
     // handle subcommands
@@ -43,17 +43,16 @@ fn main() -> Result<()> {
             cli::handle_connect(&cfg?, sub_matches)?;
         }
         Some(("context", sub_matches)) => {
-            let list = sub_matches.get_flag("list");
-            let apply = sub_matches.get_flag("apply");
+            // let list = sub_matches.get_flag("list");
+            let generate = sub_matches.get_flag("generate");
             let env = sub_matches.get_one::<String>("env").cloned();
             let db_type = sub_matches.get_one::<String>("db_type").cloned();
 
-            if apply {
-                config::apply_default_config()?;
+            if generate {
+                config::generate_default_config()?;
                 return Ok(());
             }
 
-            _ = list;
             config::list_connections(&cfg?, env, db_type);
         }
         _ => {
