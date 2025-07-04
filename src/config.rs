@@ -2,8 +2,11 @@ use crate::embedded::Configs;
 use color_eyre::eyre::{eyre, Result};
 use console::{style, StyledObject};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use std::path::PathBuf;
+use std::{
+    collections::HashMap,
+    path,
+};
+
 use tracing::{error, info, warn};
 
 
@@ -73,12 +76,14 @@ const DBHUB_CONFIG_ENV: &str = "DBHUB_CONFIG";
 const DEFAULT_CONFIG_PATH: &str = "~/.dbhub/config.yml";
 const SAMPLE_CONFIG_FILE_PATH: &str = "sample.yml";
 
-fn get_config_paths() -> Vec<PathBuf> {
+fn get_config_paths() -> Vec<path::PathBuf> {
     match std::env::var(DBHUB_CONFIG_ENV) {
         Ok(paths) => {
             paths
                 .split(':')
-                .map(|path| deal_config_path(path).unwrap())
+                .map(|path| -> path::PathBuf {
+                    deal_config_path(path).unwrap()
+                })
                 .collect()
         }
         Err(_) => {
@@ -91,13 +96,13 @@ fn get_config_paths() -> Vec<PathBuf> {
     }
 }
 
-fn deal_config_path(path: &str) -> Option<PathBuf> {
+fn deal_config_path(path: &str) -> Option<path::PathBuf> {
     if let Some(home) = dirs::home_dir() {
         // Unix-like system (e.g., Linux, macOS)
         #[cfg(target_os = "macos")]
         if path.starts_with("~") {
             let relative_path = path.strip_prefix("~/").unwrap_or("");
-            return Some(home.join(PathBuf::from(relative_path)));
+            return Some(home.join(relative_path));
         }
 
         // Windows system
@@ -108,7 +113,7 @@ fn deal_config_path(path: &str) -> Option<PathBuf> {
         }
     }
 
-    Some(PathBuf::from(path))
+    Some(path::PathBuf::from(path))
 }
 
 pub fn apply_default_config() -> Result<()> {
@@ -172,13 +177,13 @@ pub fn loads() -> Result<Config> {
     Ok(config)
 }
 
-fn load_config(config_path: &PathBuf) -> Result<Config> {
-    match std::fs::read_to_string(config_path) {
+fn load_config<P: AsRef<path::Path>>(config_path: P) -> Result<Config> {
+    match std::fs::read_to_string(config_path.as_ref()) {
         Ok(content) => {
             match serde_yaml::from_str(&content) {
                 Ok(config) => Ok(config),
                 Err(e) => {
-                    error!("Failed to parse config file: {:?}, error: {:?}", config_path, e);
+                    error!("Failed to parse config file: {:?}, error: {:?}", config_path.as_ref(), e);
                     Err(e.into())
                 }
             }

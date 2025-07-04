@@ -12,11 +12,11 @@ pub struct Scripts;
 pub fn debug_embed() {
     println!("Configs:");
     for file in Configs::iter() {
-        println!("  {}", file);
+        println!("  {file}");
     }
 
     println!("Scripts:");
     for file in Scripts::iter() {
-        println!("  {}", file);
+        println!("  {file}");
     }
 }

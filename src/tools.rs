@@ -1,10 +1,11 @@
 use crate::config::{Config, Database};
 use crate::embedded::Scripts;
 use color_eyre::eyre::{eyre, Result};
-use mlua::{FromLua, Lua, Value};
-use std::collections::HashMap;
-use std::path::PathBuf;
-use std::process::{Command, Stdio};
+use std::{
+    collections::HashMap,
+    path,
+    process,
+};
 use tracing::{debug, info, warn};
 use which::which;
 
@@ -44,7 +45,7 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
         let command = args.first().ok_or_else(|| eyre!("No command provided"))?;
         which(command).map_err(|_| {
             eyre!(
-                "Command `{}` not found, please install it or check yout PATH.",
+                "Command `{}` not found, please install it or check out the PATH environment variable.",
                 command
             )
         })?;
@@ -53,10 +54,10 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
         last_output_lines.clear();
 
         if output.again {
-            let output = Command::new(command)
+            let output = process::Command::new(command)
                 .args(&args[1..])
-                .stdout(Stdio::piped())
-                .stderr(Stdio::piped())
+                .stdout(process::Stdio::piped())
+                .stderr(process::Stdio::piped())
                 .spawn()?
                 .wait_with_output()?;
 
@@ -83,11 +84,11 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
 
         // DONE(@yeqown): open another shell to execute the interactive command.
         //  and then exit the current shell.
-        Command::new(command)
+        process::Command::new(command)
             .args(&args[1..])
-            .stdin(std::process::Stdio::inherit())
-            .stdout(std::process::Stdio::inherit())
-            .stderr(std::process::Stdio::inherit())
+            .stdin(process::Stdio::inherit())
+            .stdout(process::Stdio::inherit())
+            .stderr(process::Stdio::inherit())
             .spawn()?
             .wait()?;
 
@@ -98,10 +99,10 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
     Err(eyre!("Script execution over 5 times"))
 }
 
-fn locate_lua_script(db_type: &str) -> Result<PathBuf> {
+fn locate_lua_script(db_type: &str) -> Result<path::PathBuf> {
     let home_dir = dirs::home_dir().ok_or_else(|| eyre!("Failed to get home directory"))?;
 
-    let lua_script = format!("{}.lua", db_type);
+    let lua_script = format!("{db_type}.lua");
     let lua_script_path = home_dir.join(".dbhub").join(lua_script.clone());
 
     if !lua_script_path.exists() {
@@ -109,7 +110,7 @@ fn locate_lua_script(db_type: &str) -> Result<PathBuf> {
         // Use the default script in embedded::Scripts
         // Copy the script to the lua_script_path if it doesn't exist.
         // Only fail if the script doesn't exist in embedded::Scripts either.
-        let file = Scripts::get(format!("{}", lua_script).as_str());
+        let file = Scripts::get(lua_script.as_str());
         if file.is_none() {
             return Err(eyre!("No lua script found for database type: {}", db_type));
         }
@@ -131,10 +132,10 @@ struct LuaOutput {
     again: bool,               // Whether to run the script again.
 }
 
-impl<'lua> FromLua for LuaOutput {
-    fn from_lua(lua_value: Value, _: &Lua) -> mlua::Result<Self> {
+impl mlua::FromLua for LuaOutput {
+    fn from_lua(lua_value: mlua::Value, _: &mlua::Lua) -> mlua::Result<Self> {
         match lua_value {
-            Value::Table(table) => {
+            mlua::Value::Table(table) => {
                 let command_with_args: String = table.get("command_with_args")?;
                 let again: bool = table.get("again")?;
                 Ok(LuaOutput {
@@ -152,17 +153,17 @@ impl<'lua> FromLua for LuaOutput {
 }
 
 fn run_lua_with(
-    lua_script_path: &PathBuf,
+    lua_script_path: &path::Path,
     variables: &HashMap<String, String>,
     annotations: &HashMap<String, String>,
-    last_output_lines: &Vec<String>,
+    last_output_lines: &[String],
     count: usize,
 ) -> Result<LuaOutput> {
     let lua_state = LuaState {
         count,
         variables: variables.clone(),
         annotations: annotations.clone(),
-        last_output_lines: last_output_lines.clone(),
+        last_output_lines: last_output_lines.to_vec(),
     };
 
     // Use the lua script to generate the command at first.
@@ -175,8 +176,10 @@ struct LuaState {
     annotations: HashMap<String, String>,
     last_output_lines: Vec<String>,
 }
-fn try_execute_lua(lua_script_path: &PathBuf, state: &LuaState) -> Result<LuaOutput> {
-    let lua = Lua::new();
+
+
+fn try_execute_lua(lua_script_path: &path::Path, state: &LuaState) -> Result<LuaOutput> {
+    let lua = mlua::Lua::new();
     let globals = lua.globals();
 
     let lua_state = match lua.create_table() {
@@ -194,12 +197,14 @@ fn try_execute_lua(lua_script_path: &PathBuf, state: &LuaState) -> Result<LuaOut
     // Set variables
     if let Ok(lua_variables) = create_and_fill_lua_table(
         &lua,
-        state.variables.iter().map(|(k, v)| {
-            (
-                mlua::Value::String(lua.create_string(k).unwrap()),
-                mlua::Value::String(lua.create_string(v).unwrap()),
-            )
-        }),
+        state.variables
+            .iter()
+            .map(|(k, v)| {
+                (
+                    mlua::Value::String(lua.create_string(k).unwrap()),
+                    mlua::Value::String(lua.create_string(v).unwrap()),
+                )
+            }),
     ) {
         set_lua_table_value(
             &lua_state,
@@ -249,7 +254,7 @@ fn try_execute_lua(lua_script_path: &PathBuf, state: &LuaState) -> Result<LuaOut
         mlua::Value::Table(lua_state),
     );
 
-    match lua.load(lua_script_path.clone()).eval() {
+    match lua.load(lua_script_path).eval() {
         Ok(result) => Ok(result),
         Err(err) => Err(eyre!(
             "Lua script failed: {}",
@@ -265,7 +270,7 @@ fn set_lua_table_value(lua_table: &mlua::Table, key: mlua::Value, value: mlua::V
 }
 
 fn create_and_fill_lua_table(
-    lua: &Lua,
+    lua: &mlua::Lua,
     entries: impl IntoIterator<Item=(mlua::Value, mlua::Value)>,
 ) -> mlua::Result<mlua::Table> {
     let lua_table = lua.create_table()?;

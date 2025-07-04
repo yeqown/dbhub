@@ -67,7 +67,7 @@ pub fn handle_connect(cfg: &Config, matched: &ArgMatches) -> Result<()> {
             color_eyre::eyre::eyre!("Alias '{}' not found", alias)
         })?;
 
-        return tools::connect(db, &cfg);
+        return tools::connect(db, cfg);
     }
 
     Err(color_eyre::eyre::eyre!("Either alias or both env and db must be specified"))
