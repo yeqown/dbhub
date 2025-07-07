@@ -1,13 +1,15 @@
+use crate::cli::ContextArgs;
 use crate::embedded::Configs;
 use color_eyre::eyre::{eyre, Result};
 use console::{style, StyledObject};
 use serde::{Deserialize, Serialize};
 use std::{
+    collections::BTreeMap,
     collections::HashMap,
     path,
 };
 
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -97,7 +99,7 @@ fn get_config_paths() -> Vec<path::PathBuf> {
 }
 
 fn deal_config_path(path: &str) -> Option<path::PathBuf> {
-    if let Some(home) = dirs::home_dir() {
+    if let Some(ref home) = dirs::home_dir() {
         // Unix-like system (e.g., Linux, macOS)
         #[cfg(target_os = "macos")]
         if path.starts_with("~") {
@@ -147,8 +149,8 @@ pub fn loads() -> Result<Config> {
         environments: HashMap::new(),
     };
 
-    for config_path in config_paths {
-        match load_config(&config_path) {
+    for ref config_path in config_paths {
+        match load_config(config_path) {
             Ok(incoming) => {
                 config.databases.extend(incoming.databases);
                 if let Some(templates) = incoming.templates {
@@ -240,12 +242,88 @@ impl Database {
 }
 
 
+#[derive(Debug, Default)]
+pub struct Filter {
+    pub env: Option<String>,
+    pub db_type: Option<String>,
+    pub alias: Option<String>,
+}
+
+impl Filter {
+    pub fn from_args(args: &ContextArgs) -> Self {
+        let mut filter = Filter::default();
+        if let Some(ref env) = args.filter_env {
+            filter.env = Some(env.clone());
+        }
+        if let Some(ref db_type) = args.filter_db_type {
+            filter.db_type = Some(db_type.clone());
+        }
+        if let Some(ref alias) = args.filter_alias {
+            filter.alias = Some(alias.clone());
+        }
+
+        filter
+    }
+}
+
+#[derive(Debug)]
+struct ListFormat {
+    pub with_desc: bool,
+    pub with_dsn: bool,
+    pub with_annotations: bool,
+}
+
+impl ListFormat {
+    pub fn from_args(args: &ContextArgs) -> Self {
+        let mut format = ListFormat::default();
+        // format.with_desc = args.get_flag("with-desc");
+        format.with_dsn = args.with_dsn;
+        format.with_annotations = args.with_annotations;
+        format
+    }
+}
+
+impl Default for ListFormat {
+    fn default() -> Self {
+        Self {
+            with_desc: true,
+            with_dsn: false,
+            with_annotations: false,
+        }
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct ListOptions {
+    pub filter: Filter,
+    format: ListFormat,
+}
+
+// impl Default for ListOptions {
+//     fn default() -> Self {
+//         Self {
+//             filter: Filter::default(),
+//             format: ListFormat::default(),
+//         }
+//     }
+// }
+
+impl ListOptions {
+    pub fn from_args(args: &ContextArgs) -> Self {
+        let mut options = ListOptions::default();
+        options.filter = Filter::from_args(args);
+        options.format = ListFormat::from_args(args);
+        options
+    }
+}
+
 pub fn list_connections(
     config: &Config,
-    env_filter: Option<String>,
-    db_type_filter: Option<String>,
+    opts: &ListOptions,
 ) {
     println!("{}", style("Databases:").bold());
+
+    debug!("list_connections with options: {:?}", opts);
 
     let mut found_databases = 0;
 
@@ -253,19 +331,28 @@ pub fn list_connections(
     let mut grouped_databases: std::collections::BTreeMap<&str, std::collections::BTreeMap<&str, Vec<&Database>>> = std::collections::BTreeMap::new();
     for (env, db_list) in &config.environments {
         // if env is specified, only list connections in that env.
-        if let Some(ref specified_env) = env_filter {
+        if let Some(ref specified_env) = opts.filter.env {
             if env != specified_env {
                 continue;
             }
         }
 
         for db in db_list {
+            // if alias is specified, only list connections with that alias.
+            if let Some(ref specified_alias) = opts.filter.alias {
+                if &db.alias != specified_alias {
+                    continue;
+                }
+            }
+
             // if db_type is specified, only list connections of that type.
-            if let Some(ref specified_db_type) = db_type_filter {
+            if let Some(ref specified_db_type) = opts.filter.db_type {
                 if db.db_type != *specified_db_type {
                     continue;
                 }
             }
+
+            found_databases += 1;
 
             grouped_databases
                 .entry(env)
@@ -276,6 +363,17 @@ pub fn list_connections(
         }
     }
 
+    print_databases(grouped_databases, opts);
+
+    if found_databases == 0 {
+        println!("{}", style("No databases found.").red());
+    }
+}
+
+fn print_databases(
+    grouped_databases: BTreeMap<&str, BTreeMap<&str, Vec<&Database>>>,
+    opts: &ListOptions,
+) {
     for (env, db_type_map) in grouped_databases {
         let styled_env: StyledObject<&str> = style(env).blue().bold();
         println!("  {styled_env}");
@@ -284,16 +382,38 @@ pub fn list_connections(
             let styled_db_type: StyledObject<&str> = style(db_type).green().bold();
             println!("    {styled_db_type}");
 
+            let mut is_first = true;
+
             for db in db_list {
-                found_databases += 1;
-                let alias = format!("⭐️ Alias: {}", style(&db.alias).bold());
-                let desc = format!("📜 Desc : {}", style(db.description.clone().unwrap_or_else(|| "No description".to_string())).dim());
-                println!("      {alias} \n      {desc}");
+                if !is_first {
+                    println!();
+                }
+
+                let alias = format!("🚀 Alias: {}", style(&db.alias).bold());
+                println!("\t{alias}");
+
+                if opts.format.with_desc {
+                    let desc = format!("📜 Desc : {}", style(db.description.clone().unwrap_or_else(|| "No description".to_string())).dim());
+                    println!("\t{desc}");
+                }
+
+                if opts.format.with_dsn {
+                    let dsn = format!("🔗 DSN : {}", style(&db.dsn).dim());
+                    println!("\t{dsn}");
+                }
+
+                if opts.format.with_annotations {
+                    if let Some(annos) = &db.annotations {
+                        println!("\t{}", style("📝 Annotations:").bold());
+                        for (key, value) in annos {
+                            let anno = format!("-> \"{key}\": {value}");
+                            println!("\t\t{anno}");
+                        }
+                    }
+                }
+
+                is_first = false;
             }
         }
-    }
-
-    if found_databases == 0 {
-        println!("{}", style("No databases found.").red());
     }
 }

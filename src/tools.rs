@@ -70,7 +70,7 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
             }
 
             debug!(
-                "Command `{}` output: {}",
+                "Command `{}` output: \n{}",
                 command,
                 String::from_utf8(output.stdout.clone())?
             );

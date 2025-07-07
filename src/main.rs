@@ -1,3 +1,4 @@
+use clap::Parser;
 use color_eyre::eyre::Result;
 use tracing::warn;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
@@ -27,39 +28,26 @@ fn main() -> Result<()> {
 
     // tracing_subscriber::fmt::init();
 
-    let matches = cli::build_cli().get_matches();
-
     // load config from a file
     let cfg = config::loads();
     if cfg.is_err() {
         warn!("Could not load config file, please check or run `dbhub context --generate` to create.");
     }
 
-    // handle subcommands
-    let command = matches.subcommand();
+    let cli = cli::Cli::parse();
 
-    match command {
-        Some(("connect", sub_matches)) => {
-            cli::handle_connect(&cfg?, sub_matches)?;
+    match cli.command {
+        cli::Commands::Connect { ref alias } => {
+            cli::handle_connect(&cfg?, alias)?;
         }
-        Some(("context", sub_matches)) => {
-            // let list = sub_matches.get_flag("list");
-            let generate = sub_matches.get_flag("generate");
-            let env = sub_matches.get_one::<String>("env").cloned();
-            let db_type = sub_matches.get_one::<String>("db_type").cloned();
-
-            if generate {
+        cli::Commands::Context(args) => {
+            if args.generate {
                 config::generate_default_config()?;
                 return Ok(());
             }
 
-            config::list_connections(&cfg?, env, db_type);
-        }
-        _ => {
-            // TODO: support default command
-            let default_command = cli::build_default_command();
-            let default_matches = default_command.get_matches();
-            cli::handle_connect(&cfg?, &default_matches)?;
+            let opts = config::ListOptions::from_args(&args);
+            config::list_connections(&cfg?, &opts);
         }
     }
 
