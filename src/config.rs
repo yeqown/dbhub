@@ -22,11 +22,11 @@ pub struct Config {
     pub templates: Option<HashMap<String, Template>>,
 
     // Loaded from config file to help CLI usage. Only saved in MEMORY.
-    // key: alias, value: Database config instance.
+    // key: alias, value: Database index in databases.
     #[serde(skip)]
-    pub aliases: HashMap<String, Database>,
+    pub aliases: HashMap<String, usize>,
     #[serde(skip)]
-    pub environments: HashMap<String, Vec<Database>>,
+    pub environments: HashMap<String, Vec<usize>>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -51,16 +51,20 @@ pub struct Database {
 
 impl Config {
     #[allow(unused)]
-    pub fn get_all_aliases(&self) -> Vec<&str> {
+    pub(super) fn get_all_aliases(&self) -> Vec<&str> {
         self.aliases.keys().map(|alias| alias.as_str()).collect()
     }
-
-    pub fn get_mut_templates(&mut self) -> &mut HashMap<String, Template> {
+    
+    pub(super) fn get_mut_templates(&mut self) -> &mut HashMap<String, Template> {
         self.templates.as_mut().unwrap()
     }
 
-    pub fn get_templates(&self) -> &HashMap<String, Template> {
+    pub(super) fn get_templates(&self) -> &HashMap<String, Template> {
         self.templates.as_ref().unwrap()
+    }
+
+    pub(super) fn get_database_by_index(&self, index: &usize) -> Option<&Database> {
+        self.databases.get(*index)
     }
 }
 
@@ -164,16 +168,16 @@ pub fn loads() -> Result<Config> {
     }
 
     // Populate aliases and environments, and warn about duplicates.
-    for db in &config.databases {
+    for (i, db) in config.databases.iter().enumerate() {
         if config.aliases.contains_key(&db.alias) {
             warn!("Duplicate alias found: {}", &db.alias);
         }
 
-        config.aliases.insert(db.alias.clone(), db.clone());
+        config.aliases.insert(db.alias.clone(), i);
         config.environments
             .entry(db.env.clone())
             .or_default()
-            .push(db.clone());
+            .push(i);
     }
 
     Ok(config)
@@ -329,7 +333,7 @@ pub fn list_connections(
 
     // group the databases by env and db_type.
     let mut grouped_databases: std::collections::BTreeMap<&str, std::collections::BTreeMap<&str, Vec<&Database>>> = std::collections::BTreeMap::new();
-    for (env, db_list) in &config.environments {
+    for (env, db_list) in config.environments.iter() {
         // if env is specified, only list connections in that env.
         if let Some(ref specified_env) = opts.filter.env {
             if env != specified_env {
@@ -337,7 +341,9 @@ pub fn list_connections(
             }
         }
 
-        for db in db_list {
+        for db_index in db_list {
+            let db = config.get_database_by_index(db_index).unwrap();
+
             // if alias is specified, only list connections with that alias.
             if let Some(ref specified_alias) = opts.filter.alias {
                 if &db.alias != specified_alias {
@@ -356,9 +362,9 @@ pub fn list_connections(
 
             grouped_databases
                 .entry(env)
-                .or_insert_with(std::collections::BTreeMap::new)
+                .or_default()
                 .entry(&db.db_type)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(db);
         }
     }
