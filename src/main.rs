@@ -28,13 +28,19 @@ fn main() -> Result<()> {
 
     // tracing_subscriber::fmt::init();
 
+    let cli = cli::Cli::parse();
+
+    // Handle completion command early to avoid config loading
+    if let cli::Commands::Completion { shell } = &cli.command {
+        cli::handle_completion(*shell)?;
+        return Ok(());
+    }
+
     // load config from a file
     let cfg = config::loads();
     if cfg.is_err() {
         warn!("Could not load config file, please check or run `dbhub context --generate` to create.");
     }
-
-    let cli = cli::Cli::parse();
 
     match cli.command {
         cli::Commands::Connect { ref alias } => {
@@ -48,6 +54,10 @@ fn main() -> Result<()> {
 
             let opts = config::ListOptions::from_args(&args);
             config::list_connections(&cfg?, &opts);
+        }
+        cli::Commands::Completion { .. } => {
+            // Already handled above
+            unreachable!()
         }
     }
 

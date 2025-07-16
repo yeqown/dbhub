@@ -37,20 +37,81 @@ cargo binstall dbhub
 cargo install dbhub 
 ```
 
+## Shell 自动补全
+
+dbhub 支持 zsh、bash、fish 和 PowerShell 的 shell 自动补全功能。
+
+### 快速安装
+
+使用提供的安装脚本：
+
+```shell
+# 安装 zsh 自动补全（默认）
+./scripts/install-completion.sh
+
+# 安装其他 shell 的自动补全
+./scripts/install-completion.sh bash
+./scripts/install-completion.sh fish
+./scripts/install-completion.sh powershell
+```
+
+### 手动安装
+
+#### Zsh
+
+```shell
+# 生成补全脚本
+dbhub completion zsh > ~/.zsh/completions/_dbhub
+
+# 如果尚未添加，请将以下内容添加到您的 .zshrc 文件中
+echo 'fpath=(~/.zsh/completions $fpath)' >> ~/.zshrc
+echo 'autoload -U compinit && compinit' >> ~/.zshrc
+
+# 重新加载您的 shell
+source ~/.zshrc
+```
+
+#### Bash
+
+```shell
+# 生成补全脚本
+dbhub completion bash > ~/.bash_completion.d/dbhub
+
+# 如果尚未添加，请将以下内容添加到您的 .bashrc 文件中
+echo 'for f in ~/.bash_completion.d/*; do source $f; done' >> ~/.bashrc
+
+# 重新加载您的 shell
+source ~/.bashrc
+```
+
+#### Fish
+
+```shell
+# 生成补全脚本
+dbhub completion fish > ~/.config/fish/completions/dbhub.fish
+```
+
+#### PowerShell
+
+```shell
+# 生成补全脚本并添加到您的配置文件中
+dbhub completion powershell >> $PROFILE
+```
+
 ## 使用方法
 
 ```shell
-Usage: dbhub [OPTIONS] [COMMAND]
+Usage: dbhub <COMMAND>
 
 Commands:
-  connect  Connect to a database using environment and database name
-  context  Manage database connection contexts
-  help     Print this message or the help of the given subcommand(s)
+  connect     Connect to a database using environment and database name
+  context     Manage database connection contexts
+  completion  Generate shell completion scripts
+  help        Print this message or the help of the given subcommand(s)
 
 Options:
-  -c, --config <CONFIG>  Config file path
-  -h, --help             Print help
-  -V, --version          Print version
+  -h, --help     Print help
+  -V, --version  Print version
 ```
 
 ## 配置文件

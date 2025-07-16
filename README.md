@@ -38,6 +38,67 @@ cargo binstall dbhub
 cargo install dbhub 
 ```
 
+## Shell Completion
+
+dbhub supports shell completion for zsh, bash, fish, and PowerShell.
+
+### Quick Installation
+
+Use the provided installation script:
+
+```shell
+# Install zsh completion (default)
+./scripts/install-completion.sh
+
+# Install for other shells
+./scripts/install-completion.sh bash
+./scripts/install-completion.sh fish
+./scripts/install-completion.sh powershell
+```
+
+### Manual Installation
+
+#### Zsh
+
+```shell
+# Generate completion script
+dbhub completion zsh > ~/.zsh/completions/_dbhub
+
+# Add to your .zshrc if not already present
+echo 'fpath=(~/.zsh/completions $fpath)' >> ~/.zshrc
+echo 'autoload -U compinit && compinit' >> ~/.zshrc
+
+# Reload your shell
+source ~/.zshrc
+```
+
+#### Bash
+
+```shell
+# Generate completion script
+dbhub completion bash > ~/.bash_completion.d/dbhub
+
+# Add to your .bashrc if not already present
+echo 'for f in ~/.bash_completion.d/*; do source $f; done' >> ~/.bashrc
+
+# Reload your shell
+source ~/.bashrc
+```
+
+#### Fish
+
+```shell
+# Generate completion script
+dbhub completion fish > ~/.config/fish/completions/dbhub.fish
+```
+
+#### PowerShell
+
+```shell
+# Generate completion script and add to your profile
+dbhub completion powershell >> $PROFILE
+```
+
 ## Usage
 
 ```shell

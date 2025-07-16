@@ -1,8 +1,10 @@
 use crate::config::Config;
 use crate::tools;
-use clap::{Args, Parser, Subcommand, ValueHint};
+use clap::{Args, Parser, Subcommand, ValueHint, CommandFactory};
+use clap_complete::{generate, Shell};
 use color_eyre::eyre::Result;
 use std::cmp::min;
+use std::io;
 
 /// 替换为实际的包描述
 #[derive(Parser)]
@@ -25,6 +27,13 @@ pub(crate) enum Commands {
     /// Manage database connection contexts
     #[command(alias = "e")]
     Context(ContextArgs),
+    /// Generate shell completion scripts
+    #[command(alias = "comp")]
+    Completion {
+        /// Shell type
+        #[arg(value_enum)]
+        shell: Shell,
+    },
 }
 
 
@@ -48,6 +57,12 @@ pub struct ContextArgs {
     /// Output format control: with_annotations
     #[arg(long)]
     pub with_annotations: bool,
+}
+
+pub fn handle_completion(shell: Shell) -> Result<()> {
+    let mut cmd = Cli::command();
+    generate(shell, &mut cmd, "dbhub", &mut io::stdout());
+    Ok(())
 }
 
 pub fn handle_connect(cfg: &Config, alias: &String) -> Result<()> {
