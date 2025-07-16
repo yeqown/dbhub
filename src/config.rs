@@ -51,10 +51,10 @@ pub struct Database {
 
 impl Config {
     #[allow(unused)]
-    pub(super) fn get_all_aliases(&self) -> Vec<&str> {
-        self.aliases.keys().map(|alias| alias.as_str()).collect()
+    pub(super) fn get_all_aliases(&self) -> Vec<String> {
+        self.aliases.keys().cloned().collect()
     }
-    
+
     pub(super) fn get_mut_templates(&mut self) -> &mut HashMap<String, Template> {
         self.templates.as_mut().unwrap()
     }
@@ -125,6 +125,10 @@ fn deal_config_path(path: &str) -> Option<path::PathBuf> {
 pub fn generate_default_config() -> Result<()> {
     let config_path = deal_config_path(DEFAULT_CONFIG_PATH).unwrap();
 
+    if config_path.exists() {
+        return Err(eyre!("Config file already exists: {:?}", config_path));
+    }
+
     // Copy configs/sample.yml to `config_path`
     let sample_config = Configs::get(SAMPLE_CONFIG_FILE_PATH);
     if sample_config.is_none() {
@@ -182,6 +186,7 @@ pub fn loads() -> Result<Config> {
 
     Ok(config)
 }
+
 
 fn load_config<P: AsRef<path::Path>>(config_path: P) -> Result<Config> {
     match std::fs::read_to_string(config_path.as_ref()) {

@@ -23,9 +23,9 @@ case "$SHELL_TYPE" in
         COMPLETION_DIR="$HOME/.zsh/completions"
         mkdir -p "$COMPLETION_DIR"
         
-        # Generate and install completion script
-        echo "Installing zsh completion for dbhub..."
-        "$PROJECT_DIR/target/release/dbhub" completion zsh > "$COMPLETION_DIR/_dbhub"
+        # Generate and install enhanced completion script for zsh
+        echo "Installing enhanced zsh completion for dbhub..."
+        "$SCRIPT_DIR/generate-zsh-completion.sh" > "$COMPLETION_DIR/_dbhub"
         
         # Add to fpath if not already there
         ZSHRC="$HOME/.zshrc"
@@ -36,7 +36,7 @@ case "$SHELL_TYPE" in
             echo "autoload -U compinit && compinit" >> "$ZSHRC"
         fi
         
-        echo "✅ Zsh completion installed successfully!"
+        echo "✅ Enhanced Zsh completion with dynamic alias completion installed successfully!"
         echo "Please restart your shell or run: source ~/.zshrc"
         ;;
     bash)

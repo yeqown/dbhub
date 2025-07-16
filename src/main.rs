@@ -1,6 +1,5 @@
 use clap::Parser;
 use color_eyre::eyre::Result;
-use tracing::warn;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
 
 mod config;
@@ -30,21 +29,11 @@ fn main() -> Result<()> {
 
     let cli = cli::Cli::parse();
 
-    // Handle completion command early to avoid config loading
-    if let cli::Commands::Completion { shell } = &cli.command {
-        cli::handle_completion(*shell)?;
-        return Ok(());
-    }
-
     // load config from a file
-    let cfg = config::loads();
-    if cfg.is_err() {
-        warn!("Could not load config file, please check or run `dbhub context --generate` to create.");
-    }
-
     match cli.command {
         cli::Commands::Connect { ref alias } => {
-            cli::handle_connect(&cfg?, alias)?;
+            let cfg = config::loads()?;
+            cli::handle_connect(&cfg, alias)?;
         }
         cli::Commands::Context(args) => {
             if args.generate {
@@ -52,12 +41,19 @@ fn main() -> Result<()> {
                 return Ok(());
             }
 
+            let cfg = config::loads()?;
             let opts = config::ListOptions::from_args(&args);
-            config::list_connections(&cfg?, &opts);
+            config::list_connections(&cfg, &opts);
         }
-        cli::Commands::Completion { .. } => {
+        cli::Commands::Completion { shell } => {
             // Already handled above
-            unreachable!()
+            cli::handle_completion(shell)?;
+            return Ok(());
+        }
+        cli::Commands::CompletionSuggestions { ref suggestion_type } => {
+            let cfg = config::loads()?;
+            cli::handle_completion_suggestions(&cfg, suggestion_type)?;
+            return Ok(());
         }
     }
 

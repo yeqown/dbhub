@@ -1,6 +1,6 @@
 use crate::config::Config;
 use crate::tools;
-use clap::{Args, Parser, Subcommand, ValueHint, CommandFactory};
+use clap::{Args, CommandFactory, Parser, Subcommand, ValueHint};
 use clap_complete::{generate, Shell};
 use color_eyre::eyre::Result;
 use std::cmp::min;
@@ -34,6 +34,13 @@ pub(crate) enum Commands {
         #[arg(value_enum)]
         shell: Shell,
     },
+    /// Internal command for completion suggestions (hidden)
+    #[command(hide = true)]
+    CompletionSuggestions {
+        /// Type of suggestions to generate
+        #[arg()]
+        suggestion_type: String,
+    },
 }
 
 
@@ -57,6 +64,23 @@ pub struct ContextArgs {
     /// Output format control: with_annotations
     #[arg(long)]
     pub with_annotations: bool,
+}
+
+pub fn handle_completion_suggestions(cfg: &Config, suggestion_type: &str) -> Result<()> {
+    match suggestion_type {
+        "aliases" => {
+            let mut aliases = cfg.get_all_aliases();
+            aliases.sort();
+
+            for alias in aliases {
+                println!("{alias}");
+            }
+        }
+        _ => {
+            // Unknown suggestion type, return empty
+        }
+    }
+    Ok(())
 }
 
 pub fn handle_completion(shell: Shell) -> Result<()> {
