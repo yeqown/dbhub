@@ -92,7 +92,8 @@ pub fn handle_completion(shell: Shell) -> Result<()> {
 pub fn handle_connect(cfg: &Config, alias: &String) -> Result<()> {
     let db_index = cfg.aliases.get(alias).ok_or_else(|| {
         let similar_alias = find_similar_alias(alias, cfg);
-        color_eyre::eyre::eyre!("Alias '{}' not found, maybe {}?", alias,similar_alias)
+        // warn!("Alias '{}' not found, maybe {}?", alias, similar_alias);
+        color_eyre::eyre::eyre!("Alias '{}' not found, maybe {}?", alias, similar_alias)
     })?;
 
     let db = cfg.get_database_by_index(db_index).unwrap();

@@ -64,6 +64,10 @@ impl Config {
     }
 
     pub(super) fn get_database_by_index(&self, index: &usize) -> Option<&Database> {
+        if index < &(0usize) || index > &self.databases.len() {
+            return None;
+        }
+        
         self.databases.get(*index)
     }
 }
@@ -166,7 +170,7 @@ pub fn loads() -> Result<Config> {
                 }
             }
             Err(e) => {
-                warn!("Failed to load config file: {:?}, error: {:?}", config_path, e)
+                warn!("Failed to load config file: {:?}, {}", config_path, e)
             }
         }
     }
