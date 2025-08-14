@@ -1,92 +1,104 @@
 name: Release
 
 on:
-  release:
-    types: [created]
-
-permissions:
-  contents: write
+  push:
+    tags:
+      - 'v*'
 
 jobs:
   build:
-    name: Build Release
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            artifact_name: dbhub
-            asset_name: dbhub-linux-amd64
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            artifact_name: dbhub
-            asset_name: dbhub-linux-arm64
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            artifact_name: dbhub
-            asset_name: dbhub-darwin-amd64
           - os: macos-latest
             target: aarch64-apple-darwin
-            artifact_name: dbhub
-            asset_name: dbhub-darwin-arm64
+            arch: aarch64
+            platform: macos
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            arch: amd64
+            platform: macos
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            arch: amd64
+            platform: linux
+          - os: ubuntu-latest
+            target: aarch64-unknown-linux-gnu
+            arch: arm64
+            platform: linux
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            arch: amd64
+            platform: windows
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+        uses: actions-rs/toolchain@v1
         with:
-          targets: ${{ matrix.target }}
+          toolchain: stable
+          target: ${{ matrix.target }}
+          override: true
 
-      - name: Install Lua 5.4 development library
+      - name: Install dependencies (macOS)
+        if: matrix.os == 'macos-latest'
         run: |
-          if [[ "${{ runner.os }}" == "Linux" ]]; then
-            sudo apt-get update
-            sudo apt-get install -y liblua5.4-dev
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            brew install lua@5.4
-          fi
-        shell: bash
+          brew install lua@5.4
 
-      - name: Set PKG_CONFIG environment variables
-        run: |
-          if [[ "${{ runner.os }}" == "Linux" && "${{ matrix.target }}" == "aarch64-unknown-linux-gnu" ]]; then
-            # Set sysroot and pkg-config path for cross-compilation
-            SYSROOT="/usr/aarch64-linux-gnu"
-            echo "PKG_CONFIG_SYSROOT_DIR=$SYSROOT" >> $GITHUB_ENV
-            echo "PKG_CONFIG_PATH=$SYSROOT/lib/pkgconfig" >> $GITHUB_ENV
-          elif [[ "${{ runner.os }}" == "Linux" ]]; then
-            echo "PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig" >> $GITHUB_ENV
-          elif [[ "${{ runner.os }}" == "macOS" ]]; then
-            echo "PKG_CONFIG_PATH=$(brew --prefix lua@5.4)/lib/pkgconfig" >> $GITHUB_ENV
-          fi
-        shell: bash
-
-      - name: Install cross-compilation tools
-        if: runner.os == 'Linux' && contains(matrix.target, 'aarch64')
+      - name: Install dependencies (Linux)
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-          # Install cross-compiled Lua development libraries if necessary
-          sudo apt-get install -y liblua5.4-dev:arm64
+          sudo apt-get install -y liblua5.4-dev
+          if [ "${{ matrix.arch }}" = "arm64" ]; then
+            sudo apt-get install -y gcc-aarch64-linux-gnu liblua5.4-dev:arm64
+            echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+          fi
+
+      - name: Install dependencies (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          Invoke-WebRequest -Uri https://luabinaries.sourceforge.net/download.html -OutFile lua.html
+          # 注意：Windows上的lua54安装可能需要更复杂的步骤，这里需要根据实际情况调整
+          # 可能需要从源码编译或使用预编译的二进制包
 
       - name: Build
-        run: |
-          cargo build --release --target ${{ matrix.target }}
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --target ${{ matrix.target }}
+        env:
+          LUA_INCLUDE_DIR: ${{ matrix.os == 'macos-latest' && '/usr/local/include/lua5.4' || '/usr/include/lua5.4' }}
+          LUA_LIB_DIR: ${{ matrix.os == 'macos-latest' && '/usr/local/lib' || '/usr/lib' }}
 
-      - name: Prepare artifact
-        shell: bash
+      - name: Rename binary
         run: |
-          cd target/${{ matrix.target }}/release/
-          tar czf ../../../${{ matrix.asset_name }}.tar.gz ${{ matrix.artifact_name }}
+          $output_name = "dbhub-${{ matrix.platform }}-${{ matrix.arch }}"
+          if ("${{ matrix.platform }}" -eq "windows") {
+            $output_name += ".exe"
+          }
+          mv target/${{ matrix.target }}/release/dbhub $output_name
 
-      - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.platform }}-${{ matrix.arch }}
+          path: dbhub-${{ matrix.platform }}-${{ matrix.arch }}*
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: artifacts/**/dbhub-*.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: "./${{ matrix.asset_name }}.tar.gz"
-          asset_name: "${{ matrix.asset_name }}.tar.gz"
-          asset_content_type: application/gzip
