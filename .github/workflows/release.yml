@@ -98,7 +98,19 @@ jobs:
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
-        with:
-          files: artifacts/**/dbhub-*.*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ github.event.release.upload_url }}
+          asset_path: "./${{ matrix.asset_name }}.tar.gz"
+          asset_name: "${{ matrix.asset_name }}.tar.gz"
+          asset_content_type: application/gzip
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform }}-${{ matrix.arch }}
+          path: dbhub-${{ matrix.platform }}-${{ matrix.arch }}*
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
