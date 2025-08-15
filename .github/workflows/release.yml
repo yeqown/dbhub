@@ -38,15 +38,15 @@ jobs:
           target: ${{ matrix.target }}
           override: true
 
-      - name: Set up dependencies
-        if: matrix.platform == 'macos'
-        run: |
-          brew install lua@5.4 pkg-config
-
-      - name: Install dependencies (macOS)
-        if: matrix.os == 'macos-latest'
-        run: |
-          brew install lua@5.4
+      #      - name: Set up dependencies
+      #        if: matrix.platform == 'macos'
+      #        run: |
+      #          brew install lua@5.4 pkg-config
+      #
+      #      - name: Install dependencies (macOS)
+      #        if: matrix.os == 'macos-latest'
+      #        run: |
+      #          brew install lua@5.4
 
       - name: Install dependencies (Linux)
         if: matrix.os == 'ubuntu-latest'
@@ -54,16 +54,16 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y liblua5.4-dev
           if [ "${{ matrix.arch }}" = "arm64" ]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu liblua5.4-dev:arm64
+            sudo apt-get install -y gcc-aarch64-linux-gnu
             echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           fi
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
-        env:
-          PKG_CONFIG_PATH: /usr/local/opt/lua@5.4/lib/pkgconfig
-          LUA_INCLUDE_DIR: /usr/local/opt/lua@5.4/include
-          LUA_LIB_DIR: /usr/local/opt/lua@5.4/lib
+      #        env:
+      #          PKG_CONFIG_PATH: /usr/local/opt/lua@5.4/lib/pkgconfig
+      #          LUA_INCLUDE_DIR: /usr/local/opt/lua@5.4/include
+      #          LUA_LIB_DIR: /usr/local/opt/lua@5.4/lib
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
