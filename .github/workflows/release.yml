@@ -82,7 +82,7 @@ jobs:
           mv target/${{ matrix.target }}/release/dbhub $output_name
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.platform }}-${{ matrix.arch }}
           path: dbhub-${{ matrix.platform }}-${{ matrix.arch }}*
@@ -92,7 +92,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download all artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           path: artifacts
 
@@ -101,16 +101,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: "./${{ matrix.asset_name }}.tar.gz"
-          asset_name: "${{ matrix.asset_name }}.tar.gz"
-          asset_content_type: application/gzip
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.platform }}-${{ matrix.arch }}
-          path: dbhub-${{ matrix.platform }}-${{ matrix.arch }}*
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
+          files: artifacts/**/*
