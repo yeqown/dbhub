@@ -23,10 +23,10 @@ jobs:
             target: x86_64-unknown-linux-gnu
             arch: amd64
             platform: linux
-          - os: ubuntu-latest
-            target: aarch64-unknown-linux-gnu
-            arch: arm64
-            platform: linux
+    #          - os: ubuntu-latest
+    #            target: aarch64-unknown-linux-gnu
+    #            arch: arm64
+    #            platform: linux
 
     steps:
       - uses: actions/checkout@v4
@@ -47,16 +47,17 @@ jobs:
       #        if: matrix.os == 'macos-latest'
       #        run: |
       #          brew install lua@5.4
-
-      - name: Install dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          sudo apt-get update
-          if [ "${{ matrix.arch }}" = "arm64" ]; then
-            sudo apt-get install -y gcc-aarch64-linux-gnu
-            echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
-            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-ld" >> $GITHUB_ENV
-          fi
+      #      - name: Install dependencies (Linux)
+      #        if: matrix.os == 'ubuntu-latest'
+      #        run: |
+      #          sudo apt-get update
+      #          if [ "${{ matrix.arch }}" = "arm64" ]; then
+      #            sudo apt-get install -y gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu
+      #            echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
+      #            echo "CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++" >> $GITHUB_ENV
+      #            echo "AR_aarch64_unknown_linux_gnu=aarch64-linux-gnu-ar" >> $GITHUB_ENV
+      #            echo "CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-ld" >> $GITHUB_ENV
+      #          fi
 
       - name: Build
         run: cargo build --release --target ${{ matrix.target }}
