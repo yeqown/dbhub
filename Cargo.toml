@@ -25,5 +25,5 @@ color-eyre = "0.6"
 dirs = "6.0.0"
 regex = "1.10.4"
 console = "0.15"
-mlua = { version = "0.10.5", features = ["lua54"] }
+mlua = { version = "0.10.5", features = ["lua54", "vendored"] }
 rust-embed = { version = "8.7.2", features = ["debug-embed"] }

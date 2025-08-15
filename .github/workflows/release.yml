@@ -27,10 +27,6 @@ jobs:
             target: aarch64-unknown-linux-gnu
             arch: arm64
             platform: linux
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            arch: amd64
-            platform: windows
 
     steps:
       - uses: actions/checkout@v4
@@ -41,6 +37,11 @@ jobs:
           toolchain: stable
           target: ${{ matrix.target }}
           override: true
+
+      - name: Set up dependencies
+        if: matrix.platform == 'macos'
+        run: |
+          brew install lua@5.4 pkg-config
 
       - name: Install dependencies (macOS)
         if: matrix.os == 'macos-latest'
@@ -57,29 +58,12 @@ jobs:
             echo "CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc" >> $GITHUB_ENV
           fi
 
-      - name: Install dependencies (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          Invoke-WebRequest -Uri https://luabinaries.sourceforge.net/download.html -OutFile lua.html
-          # 注意：Windows上的lua54安装可能需要更复杂的步骤，这里需要根据实际情况调整
-          # 可能需要从源码编译或使用预编译的二进制包
-
       - name: Build
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --release --target ${{ matrix.target }}
+        run: cargo build --release --target ${{ matrix.target }}
         env:
-          LUA_INCLUDE_DIR: ${{ matrix.os == 'macos-latest' && '/usr/local/include/lua5.4' || '/usr/include/lua5.4' }}
-          LUA_LIB_DIR: ${{ matrix.os == 'macos-latest' && '/usr/local/lib' || '/usr/lib' }}
-
-      - name: Rename binary
-        run: |
-          $output_name = "dbhub-${{ matrix.platform }}-${{ matrix.arch }}"
-          if ("${{ matrix.platform }}" -eq "windows") {
-            $output_name += ".exe"
-          }
-          mv target/${{ matrix.target }}/release/dbhub $output_name
+          PKG_CONFIG_PATH: /usr/local/opt/lua@5.4/lib/pkgconfig
+          LUA_INCLUDE_DIR: /usr/local/opt/lua@5.4/include
+          LUA_LIB_DIR: /usr/local/opt/lua@5.4/lib
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
