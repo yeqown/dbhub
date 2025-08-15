@@ -38,67 +38,6 @@ cargo binstall dbhub
 cargo install dbhub 
 ```
 
-## Shell Completion
-
-dbhub supports shell completion for zsh, bash, fish, and PowerShell.
-
-### Quick Installation
-
-Use the provided installation script:
-
-```shell
-# Install zsh completion (default)
-./scripts/install-completion.sh
-
-# Install for other shells
-./scripts/install-completion.sh bash
-./scripts/install-completion.sh fish
-./scripts/install-completion.sh powershell
-```
-
-### Manual Installation
-
-#### Zsh
-
-```shell
-# Generate completion script
-dbhub completion zsh > ~/.zsh/completions/_dbhub
-
-# Add to your .zshrc if not already present
-echo 'fpath=(~/.zsh/completions $fpath)' >> ~/.zshrc
-echo 'autoload -U compinit && compinit' >> ~/.zshrc
-
-# Reload your shell
-source ~/.zshrc
-```
-
-#### Bash
-
-```shell
-# Generate completion script
-dbhub completion bash > ~/.bash_completion.d/dbhub
-
-# Add to your .bashrc if not already present
-echo 'for f in ~/.bash_completion.d/*; do source $f; done' >> ~/.bashrc
-
-# Reload your shell
-source ~/.bashrc
-```
-
-#### Fish
-
-```shell
-# Generate completion script
-dbhub completion fish > ~/.config/fish/completions/dbhub.fish
-```
-
-#### PowerShell
-
-```shell
-# Generate completion script and add to your profile
-dbhub completion powershell >> $PROFILE
-```
-
 ## Usage
 
 ```shell
@@ -113,6 +52,36 @@ Options:
   -c, --config <CONFIG>  Config file path
   -h, --help             Print help
   -V, --version          Print version
+```
+
+1. connect to a database context
+
+```shell
+# dbhub connect $DB_CONTEXT_ALIAS
+# or using connect command short alias: c
+dbhub connect my-local-mysql
+# same as above
+dbhub c my-local-redis
+```
+
+2. connect with runtime args
+
+```shell
+# passthrough args to lua script if it supports. such as scripts/mongo.lua
+# so that the mongo.lua script can receive `--db=test` in `runtime_args` to specify 
+# the target database at run time.
+dbhub c my-local-mongo -- --db=test
+```
+
+3. manage your local database contexts
+
+```shell
+# show all contexts
+dbhub context
+# or filter by env: only show `local` databases
+dbhub context --filter-env=local
+# or filter by database type: only show `mysql` databases
+dbhub context --filter-db-type=mysql
 ```
 
 ## Configuration File
@@ -199,6 +168,67 @@ templates:
     dsn: redis://{user}:{password}@{host}:{port}/{database}
   memcached:
     dsn: memcached://{servers}
+```
+
+## Shell Completion
+
+dbhub supports shell completion for zsh, bash, fish, and PowerShell.
+
+### Quick Installation
+
+Use the provided installation script:
+
+```shell
+# Install zsh completion (default)
+./scripts/install-completion.sh
+
+# Install for other shells
+./scripts/install-completion.sh bash
+./scripts/install-completion.sh fish
+./scripts/install-completion.sh powershell
+```
+
+### Manual Installation
+
+#### Zsh
+
+```shell
+# Generate completion script
+dbhub completion zsh > ~/.zsh/completions/_dbhub
+
+# Add to your .zshrc if not already present
+echo 'fpath=(~/.zsh/completions $fpath)' >> ~/.zshrc
+echo 'autoload -U compinit && compinit' >> ~/.zshrc
+
+# Reload your shell
+source ~/.zshrc
+```
+
+#### Bash
+
+```shell
+# Generate completion script
+dbhub completion bash > ~/.bash_completion.d/dbhub
+
+# Add to your .bashrc if not already present
+echo 'for f in ~/.bash_completion.d/*; do source $f; done' >> ~/.bashrc
+
+# Reload your shell
+source ~/.bashrc
+```
+
+#### Fish
+
+```shell
+# Generate completion script
+dbhub completion fish > ~/.config/fish/completions/dbhub.fish
+```
+
+#### PowerShell
+
+```shell
+# Generate completion script and add to your profile
+dbhub completion powershell >> $PROFILE
 ```
 
 ## License

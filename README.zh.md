@@ -37,67 +37,6 @@ cargo binstall dbhub
 cargo install dbhub 
 ```
 
-## Shell 自动补全
-
-dbhub 支持 zsh、bash、fish 和 PowerShell 的 shell 自动补全功能。
-
-### 快速安装
-
-使用提供的安装脚本：
-
-```shell
-# 安装 zsh 自动补全（默认）
-./scripts/install-completion.sh
-
-# 安装其他 shell 的自动补全
-./scripts/install-completion.sh bash
-./scripts/install-completion.sh fish
-./scripts/install-completion.sh powershell
-```
-
-### 手动安装
-
-#### Zsh
-
-```shell
-# 生成补全脚本
-dbhub completion zsh > ~/.zsh/completions/_dbhub
-
-# 如果尚未添加，请将以下内容添加到您的 .zshrc 文件中
-echo 'fpath=(~/.zsh/completions $fpath)' >> ~/.zshrc
-echo 'autoload -U compinit && compinit' >> ~/.zshrc
-
-# 重新加载您的 shell
-source ~/.zshrc
-```
-
-#### Bash
-
-```shell
-# 生成补全脚本
-dbhub completion bash > ~/.bash_completion.d/dbhub
-
-# 如果尚未添加，请将以下内容添加到您的 .bashrc 文件中
-echo 'for f in ~/.bash_completion.d/*; do source $f; done' >> ~/.bashrc
-
-# 重新加载您的 shell
-source ~/.bashrc
-```
-
-#### Fish
-
-```shell
-# 生成补全脚本
-dbhub completion fish > ~/.config/fish/completions/dbhub.fish
-```
-
-#### PowerShell
-
-```shell
-# 生成补全脚本并添加到您的配置文件中
-dbhub completion powershell >> $PROFILE
-```
-
 ## 使用方法
 
 ```shell
@@ -112,6 +51,34 @@ Commands:
 Options:
   -h, --help     Print help
   -V, --version  Print version
+```
+
+1. 连接数据库
+
+```shell
+# dbhub connect $数据库上下别名
+dbhub connect my-local-mysql
+# connect 也可以使用 `c` 别名，效果同上
+dbhub c my-local-redis
+```
+
+2. 连接时传递运行时参数
+
+```shell
+# 连接时传递运行时参数, 比如：scripts/mongo.lua
+# 比如在 scripts/mongo.lua 中会尝试从 `runtime_args` 中解析 `--db` 参数来在运行时指定数据库（默认 admin） 
+dbhub c my-local-mongo -- --db=test
+```
+
+3. 管理数据库上下文
+
+```shell
+# 展示所有数据库上下文
+dbhub context
+# 根据 `环境` 过滤数据库上下文
+dbhub context --filter-env=local
+# 根据 `数据库类型` 过滤数据库上下文
+dbhub context --filter-db-type=mysql
 ```
 
 ## 配置文件
@@ -198,6 +165,67 @@ templates:
     dsn: redis://{user}:{password}@{host}:{port}/{database}
   memcached:
     dsn: memcached://{servers}
+```
+
+## Shell 自动补全
+
+dbhub 支持 zsh、bash、fish 和 PowerShell 的 shell 自动补全功能。
+
+### 快速安装
+
+使用提供的安装脚本：
+
+```shell
+# 安装 zsh 自动补全（默认）
+./scripts/install-completion.sh
+
+# 安装其他 shell 的自动补全
+./scripts/install-completion.sh bash
+./scripts/install-completion.sh fish
+./scripts/install-completion.sh powershell
+```
+
+### 手动安装
+
+#### Zsh
+
+```shell
+# 生成补全脚本
+dbhub completion zsh > ~/.zsh/completions/_dbhub
+
+# 如果尚未添加，请将以下内容添加到您的 .zshrc 文件中
+echo 'fpath=(~/.zsh/completions $fpath)' >> ~/.zshrc
+echo 'autoload -U compinit && compinit' >> ~/.zshrc
+
+# 重新加载您的 shell
+source ~/.zshrc
+```
+
+#### Bash
+
+```shell
+# 生成补全脚本
+dbhub completion bash > ~/.bash_completion.d/dbhub
+
+# 如果尚未添加，请将以下内容添加到您的 .bashrc 文件中
+echo 'for f in ~/.bash_completion.d/*; do source $f; done' >> ~/.bashrc
+
+# 重新加载您的 shell
+source ~/.bashrc
+```
+
+#### Fish
+
+```shell
+# 生成补全脚本
+dbhub completion fish > ~/.config/fish/completions/dbhub.fish
+```
+
+#### PowerShell
+
+```shell
+# 生成补全脚本并添加到您的配置文件中
+dbhub completion powershell >> $PROFILE
 ```
 
 ## 许可证
