@@ -5,6 +5,7 @@ use clap_complete::{generate, Shell};
 use color_eyre::eyre::Result;
 use std::cmp::min;
 use std::io;
+use tracing::debug;
 
 /// 替换为实际的包描述
 #[derive(Parser)]
@@ -23,6 +24,11 @@ pub(crate) enum Commands {
         /// Connection alias
         #[arg(value_hint = ValueHint::Other, required = true)]
         alias: String,
+
+        /// Trail
+        #[arg(trailing_var_arg = true)]
+        #[arg(allow_hyphen_values = true)]
+        passthrough_args: Vec<String>,
     },
     /// Manage database connection contexts
     #[command(alias = "e")]
@@ -89,7 +95,7 @@ pub fn handle_completion(shell: Shell) -> Result<()> {
     Ok(())
 }
 
-pub fn handle_connect(cfg: &Config, alias: &String) -> Result<()> {
+pub fn handle_connect(cfg: &Config, alias: &String, passthrough_args: &Vec<String>) -> Result<()> {
     let db_index = cfg.aliases.get(alias).ok_or_else(|| {
         let similar_alias = find_similar_alias(alias, cfg);
         // warn!("Alias '{}' not found, maybe {}?", alias, similar_alias);
@@ -98,7 +104,9 @@ pub fn handle_connect(cfg: &Config, alias: &String) -> Result<()> {
 
     let db = cfg.get_database_by_index(db_index).unwrap();
 
-    tools::connect(db, cfg)
+    debug!("passthrough_args: {:?}", passthrough_args);
+
+    tools::connect(db, cfg, passthrough_args)
 }
 
 fn find_similar_alias(alias: &str, cfg: &Config) -> String {

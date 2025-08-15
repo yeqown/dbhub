@@ -31,9 +31,9 @@ fn main() -> Result<()> {
 
     // load config from a file
     match cli.command {
-        cli::Commands::Connect { ref alias } => {
+        cli::Commands::Connect { ref alias, passthrough_args: ref script_args } => {
             let cfg = config::loads()?;
-            cli::handle_connect(&cfg, alias)?;
+            cli::handle_connect(&cfg, alias, script_args)?;
         }
         cli::Commands::Context(args) => {
             if args.generate {

@@ -10,13 +10,16 @@
 --   - last_output_lines: the last output lines of this script provided command before the script is run again.
 --                       It is a table of array of strings.
 --   - annotations: a table of annotations that are defined in the script.
---                  It is a table of hashmap. Each table contains the following fields:
+--                  It is a table of hashmap.
+--   - runtime_args: a list of command line arguments passed from the command line.
+--                  It is a table of array of strings.
 
 assert(dbhub ~= nil, "dbhub is not defined")
 assert(dbhub.variables ~= nil, "dbhub.variables is not defined")
 assert(dbhub.count ~= nil, "dbhub.count is not defined")
 assert(dbhub.last_output_lines ~= nil, "dbhub.last_output_lines is not defined")
-assert(dbhub.anotations ~= nil, "dbhub.annotations is not defined")
+assert(dbhub.annotations ~= nil, "dbhub.annotations is not defined")
+assert(dbhub.runtime_args ~= nil, "dbhub.runtime_args is not defined")
 
 print("dbhub #?", dbhub)
 

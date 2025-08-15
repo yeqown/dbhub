@@ -14,11 +14,13 @@ use which::which;
 /// # Arguments
 ///
 /// * `db` - The database connection information
+/// * `cfg` - The configuration information
+/// * `passthrough_args` - The passthrough arguments
 ///
 /// # Returns
 ///
 /// * `Result<()>` - Returns `Ok(())` if the connection is successful, otherwise returns an error
-pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
+pub fn connect(db: &Database, cfg: &Config, passthrough_args: &[String]) -> Result<()> {
     let template = cfg.get_templates().get(db.db_type.as_str());
     if template.is_none() {
         return Err(eyre!("No template found for database type: {}", db.db_type));
@@ -28,6 +30,8 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
     let mut last_output_lines: Vec<String> = vec![];
     let lua_script_path = locate_lua_script(db.db_type.as_str())?;
 
+    // Execute the Lua script in a loop (limit 5 max times).
+    // If the Lua script returns `again = true`, it means that the script wants to run the command again.
     let mut counter = 0;
     while counter < 5 {
         let output = run_lua_with(
@@ -36,6 +40,7 @@ pub fn connect(db: &Database, cfg: &Config) -> Result<()> {
             &annotations,
             &last_output_lines,
             counter,
+            &passthrough_args,
         )?;
         info!(
             "#{} Running command: \n\n\t💻 -> {}\n",
@@ -158,12 +163,14 @@ fn run_lua_with(
     annotations: &HashMap<String, String>,
     last_output_lines: &[String],
     count: usize,
+    runtime_args: &[String],
 ) -> Result<LuaOutput> {
     let lua_state = LuaState {
         count,
         variables: variables.clone(),
         annotations: annotations.clone(),
         last_output_lines: last_output_lines.to_vec(),
+        runtime_args: runtime_args.to_vec(),
     };
 
     // Use the lua script to generate the command at first.
@@ -173,8 +180,9 @@ fn run_lua_with(
 struct LuaState {
     count: usize,
     variables: HashMap<String, String>,
-    annotations: HashMap<String, String>,
-    last_output_lines: Vec<String>,
+    annotations: HashMap<String, String>, // The annotations of executing context.
+    last_output_lines: Vec<String>, // The last output lines of the previous executed lua script.
+    runtime_args: Vec<String>, // The runtime arguments passed from the command line.
 }
 
 
@@ -247,13 +255,32 @@ fn try_execute_lua(lua_script_path: &path::Path, state: &LuaState) -> Result<Lua
         );
     }
 
+    // Set runtime_args, it is a table of array of strings.
+    // The lua script can always get the `runtime_args` table, even if
+    // the runtime_args is empty.
+    if let Ok(lua_runtime_args) = create_and_fill_lua_table(
+        &lua,
+        state.runtime_args.iter().enumerate().map(|(i, arg)| {
+            (
+                mlua::Value::Integer((i + 1) as i64),
+                mlua::Value::String(lua.create_string(arg).unwrap()),
+            )
+        }),
+    ) {
+        set_lua_table_value(
+            &lua_state,
+            mlua::Value::String(lua.create_string("runtime_args").unwrap()),
+            mlua::Value::Table(lua_runtime_args),
+        );
+    }
+
     // Set dbhub to global variables
     set_lua_table_value(
         &globals,
         mlua::Value::String(lua.create_string("dbhub").unwrap()),
         mlua::Value::Table(lua_state),
     );
-
+    
     match lua.load(lua_script_path).eval() {
         Ok(result) => Ok(result),
         Err(err) => Err(eyre!(

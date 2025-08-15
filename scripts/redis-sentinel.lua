@@ -9,7 +9,7 @@ assert(dbhub.last_output_lines ~= nil, "dbhub.last_output_lines is not defined")
 assert(dbhub.annotations ~= nil, "dbhub.annotations is not defined")
 
 local variables = dbhub.variables
-local anotations = dbhub.annotations
+local annotations = dbhub.annotations
 
 local master_name_key = "redis-sentinel/mastername"
 
@@ -28,8 +28,8 @@ local function get_master()
     -- Get the master name from the `annotations.master_name` variable.
     -- If it's not set, use the default value "mymaster".
     local master_name = "mymaster"
-    if anotations[master_name_key] and anotations[master_name_key] ~= "" then
-        master_name = anotations[master_name_key]
+    if annotations[master_name_key] and annotations[master_name_key] ~= "" then
+        master_name = annotations[master_name_key]
     end
     
     return string.format("redis-cli -h %s -p %s sentinel get-master-addr-by-name %s", selected.host, selected.port, master_name)
