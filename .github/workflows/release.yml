@@ -65,6 +65,10 @@ jobs:
       #          LUA_INCLUDE_DIR: /usr/local/opt/lua@5.4/include
       #          LUA_LIB_DIR: /usr/local/opt/lua@5.4/lib
 
+      - name: Rename binary
+        run: |
+          cp target/${{ matrix.target }}/release/dbhub dbhub-${{ matrix.platform }}-${{ matrix.arch }}
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
