@@ -29,6 +29,12 @@
 
 ## 安装
 
+### 预编译二进制文件
+
+你可以从 [releases 页面](https://github.com/yeqown/dbhub/releases) 下载预编译的二进制文件，支持 Windows、macOS 和 Linux。
+
+### 从源代码构建
+
 使用 cargo binstall/install 直接安装
 
 ```shell

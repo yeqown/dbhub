@@ -32,6 +32,13 @@ DocumentDB, Doris, and Redis databases.
 
 ## Installation
 
+### Pre-compiled Binaries
+
+You can download pre-compiled binaries for Windows, macOS, and Linux from
+the [releases page](https://github.com/yeqown/dbhub/releases).
+
+### From Source
+
 ```shell
 cargo binstall dbhub
 # or 
