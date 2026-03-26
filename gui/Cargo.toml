@@ -14,4 +14,6 @@ tauri = { version = "1.5", features = ["dialog-confirm", "dialog-open", "shell-o
 dbhub-core = { path = "../core" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1"
+serde_yaml = "0.9"
 tokio = { version = "1", features = ["full"] }
+dirs = { workspace = true }

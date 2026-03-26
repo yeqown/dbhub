@@ -63,7 +63,7 @@ impl Config {
         self.templates.as_ref().unwrap()
     }
 
-    pub(super) fn get_database_by_index(&self, index: &usize) -> Option<&Database> {
+    pub fn get_database_by_index(&self, index: &usize) -> Option<&Database> {
         if index < &(0usize) || index > &self.databases.len() {
             return None;
         }
@@ -86,7 +86,7 @@ const DBHUB_CONFIG_ENV: &str = "DBHUB_CONFIG";
 const DEFAULT_CONFIG_PATH: &str = "~/.dbhub/config.yml";
 const SAMPLE_CONFIG_FILE_PATH: &str = "sample.yml";
 
-fn get_config_paths() -> Vec<path::PathBuf> {
+pub fn get_config_paths() -> Vec<path::PathBuf> {
     match std::env::var(DBHUB_CONFIG_ENV) {
         Ok(paths) => {
             paths
