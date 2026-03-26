@@ -32,20 +32,27 @@
     },
     "bundle": {
       "active": true,
-      "targets": ["dmg"],
-      "identifier": "com.dbhub.app",
-      "icon": []
+      "targets": [
+        "dmg"
+      ],
+      "identifier": "com.dbhub.app"
     },
     "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' 'unsafe-hashes';"
     },
     "updater": {
       "active": false
     },
-    "windows": [{
-      "title": "DB Hub",
-      "label": "main",
-      "visible": false
-    }]
+    "windows": [
+      {
+        "title": "DB Hub",
+        "label": "main",
+        "visible": false
+      }
+    ],
+    "systemTray": {
+      "iconPath": "icons/dbhub.png",
+      "iconAsTemplate": true
+    }
   }
 }

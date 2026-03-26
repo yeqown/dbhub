@@ -1,6 +1,8 @@
-use dbhub_core::{config, Config, Database};
+use dbhub_core::{config, Database};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::env;
+use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DatabaseDto {
@@ -38,23 +40,65 @@ impl From<DatabaseDto> for Database {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-pub struct ConfigDto {
-    pub databases: Vec<DatabaseDto>,
-    pub templates: Option<HashMap<String, TemplateDto>>,
-}
-
-#[derive(Serialize, Deserialize, Clone)]
-pub struct TemplateDto {
-    pub dsn: String,
+#[derive(Debug, Serialize, Deserialize)]
+pub struct FilterParams {
+    pub env: Option<String>,
+    pub db_type: Option<String>,
+    pub search: Option<String>,
 }
 
 #[tauri::command]
-pub async fn get_connections() -> Result<HashMap<String, Vec<DatabaseDto>>, String> {
-    let config = config::loads().map_err(|e| e.to_string())?;
+pub async fn get_connections(filter: Option<FilterParams>) -> Result<HashMap<String, Vec<DatabaseDto>>, String> {
+    println!("[DEBUG] get_connections called with filter: {:?}", filter);
+
+    let config = config::loads().map_err(|e| {
+        eprintln!("[ERROR] Failed to load config: {}", e);
+        e.to_string()
+    })?;
+
+    println!("[DEBUG] Loaded {} databases from config", config.databases.len());
     let mut grouped: HashMap<String, Vec<DatabaseDto>> = HashMap::new();
 
-    for db in config.databases {
+    // Collect all databases first
+    let mut all_databases: Vec<Database> = config.databases;
+
+    // Apply filters if provided
+    if let Some(filter_params) = filter {
+        all_databases.retain(|db| {
+            // Environment filter
+            if let Some(ref env_filter) = filter_params.env {
+                if &db.env != env_filter {
+                    return false;
+                }
+            }
+
+            // Database type filter
+            if let Some(ref type_filter) = filter_params.db_type {
+                if &db.db_type != type_filter {
+                    return false;
+                }
+            }
+
+            // Search filter
+            if let Some(ref search_term) = filter_params.search {
+                let search_lower = search_term.to_lowercase();
+                let search_in = format!("{}{}{}{}{}",
+                    db.alias, db.db_type, db.env,
+                    db.description.as_ref().unwrap_or(&String::new()),
+                    db.dsn
+                ).to_lowercase();
+
+                if !search_in.contains(&search_lower) {
+                    return false;
+                }
+            }
+
+            true
+        });
+    }
+
+    // Group by environment
+    for db in all_databases {
         grouped.entry(db.env.clone()).or_default().push(db.into());
     }
 
@@ -99,117 +143,71 @@ pub async fn connect(alias: String, runtime_args: Option<String>) -> Result<(), 
     Ok(())
 }
 
-#[tauri::command]
-pub async fn add_database(db: DatabaseDto) -> Result<(), String> {
-    let mut config = config::loads().map_err(|e| e.to_string())?;
-
-    // Check for duplicate alias
-    if config.databases.iter().any(|d| d.alias == db.alias) {
-        return Err(format!("Alias already exists: {}", db.alias));
-    }
-
-    config.databases.push(db.into());
-    save_config(&config)?;
-    Ok(())
+#[derive(Serialize, Deserialize)]
+pub struct ConfigFile {
+    pub path: String,
+    pub name: String,
 }
 
 #[tauri::command]
-pub async fn update_database(alias: String, db: DatabaseDto) -> Result<(), String> {
-    let mut config = config::loads().map_err(|e| e.to_string())?;
-
-    let index = config
-        .databases
-        .iter()
-        .position(|d| d.alias == alias)
-        .ok_or_else(|| format!("Database not found: {}", alias))?;
-
-    config.databases[index] = db.into();
-    save_config(&config)?;
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn delete_database(alias: String) -> Result<(), String> {
-    let mut config = config::loads().map_err(|e| e.to_string())?;
-
-    let index = config
-        .databases
-        .iter()
-        .position(|d| d.alias == alias)
-        .ok_or_else(|| format!("Database not found: {}", alias))?;
-
-    config.databases.remove(index);
-    save_config(&config)?;
-    Ok(())
-}
-
-fn save_config(config: &Config) -> Result<(), String> {
-    use std::fs;
-    use std::io::Write;
-
-    // Get config path - default to ~/.dbhub/config.yml
+pub async fn get_config_files() -> Result<Vec<ConfigFile>, String> {
     let home = dirs::home_dir().ok_or("Cannot determine home directory")?;
-    let config_path = home.join(".dbhub").join("config.yml");
 
-    // Backup existing config
-    if config_path.exists() {
-        let backup_path = config_path.with_extension("yml.bak");
-        fs::copy(&config_path, &backup_path).map_err(|e| e.to_string())?;
-    }
+    // Check if DBHUB_CONFIG is set
+    let config_paths = if let Ok(config_env) = env::var("DBHUB_CONFIG") {
+        // Split by colon (Unix) or semicolon (Windows)
+        #[cfg(target_os = "windows")]
+        let separator = ";";
+        #[cfg(not(target_os = "windows"))]
+        let separator = ":";
 
-    // Serialize and save
-    let yaml = serde_yaml::to_string(config).map_err(|e| e.to_string())?;
-
-    // Ensure parent directory exists
-    if let Some(parent) = config_path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
-    }
-
-    let mut file = fs::File::create(&config_path).map_err(|e| e.to_string())?;
-    file.write_all(yaml.as_bytes()).map_err(|e| e.to_string())?;
-
-    Ok(())
-}
-
-#[tauri::command]
-pub async fn get_config() -> Result<ConfigDto, String> {
-    let config = config::loads().map_err(|e| e.to_string())?;
-
-    let templates = config.templates.map(|t| {
-        t.into_iter()
-            .map(|(k, v)| (k, TemplateDto { dsn: v.dsn }))
-            .collect()
-    });
-
-    Ok(ConfigDto {
-        databases: config.databases.into_iter().map(|d| d.into()).collect(),
-        templates,
-    })
-}
-
-#[tauri::command]
-pub async fn save_config_dto(config: ConfigDto) -> Result<(), String> {
-    let mut core_config = Config {
-        databases: config.databases.into_iter().map(|d| d.into()).collect(),
-        templates: config.templates.map(|t| {
-            t.into_iter()
-                .map(|(k, v)| (k, dbhub_core::Template { dsn: v.dsn }))
-                .collect()
-        }),
-        aliases: HashMap::new(),
-        environments: HashMap::new(),
+        config_env
+            .split(separator)
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect::<Vec<_>>()
+    } else {
+        // Default: ~/.dbhub/config.yml
+        vec![home.join(".dbhub").join("config.yml").to_string_lossy().to_string()]
     };
 
-    // Rebuild indexes
-    for (i, db) in core_config.databases.iter().enumerate() {
-        core_config.aliases.insert(db.alias.clone(), i);
-        core_config
-            .environments
-            .entry(db.env.clone())
-            .or_default()
-            .push(i);
+    let config_files: Vec<ConfigFile> = config_paths
+        .iter()
+        .map(|path| {
+            let path_obj = PathBuf::from(path);
+            let name = path_obj
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_else(|| path.clone());
+            ConfigFile {
+                path: path.clone(),
+                name,
+            }
+        })
+        .collect();
+
+    Ok(config_files)
+}
+
+#[tauri::command]
+pub async fn open_config_editor(path: String) -> Result<(), String> {
+    use std::process::Command;
+
+    // Determine the default text editor for macOS
+    // Try common editors in order: TextEdit, VS Code, Sublime Text, default open command
+    if cfg!(target_os = "macos") {
+        // On macOS, use 'open' command with default text editor
+        Command::new("open")
+            .args(["-t", &path])
+            .spawn()
+            .map_err(|e| format!("Failed to open editor: {}", e))?;
+    } else {
+        // On Linux, try xdg-open
+        Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map_err(|e| format!("Failed to open editor: {}", e))?;
     }
 
-    save_config(&core_config)?;
     Ok(())
 }
