@@ -5,3 +5,6 @@ Cargo.lock
 .idea/
 .vscode/
 *.pdb
+
+# Worktrees
+.worktrees/
