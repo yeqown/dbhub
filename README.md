@@ -91,6 +91,44 @@ dbhub context --filter-env=local
 dbhub context --filter-db-type=mysql
 ```
 
+## GUI (macOS)
+
+DB Hub now includes a macOS menu bar GUI for quick access to your database connections.
+
+### Building the GUI
+
+```bash
+# Build GUI application
+cargo build -p dbhub-gui
+
+# Run GUI
+cargo run -p dbhub-gui
+```
+
+### Features
+
+- Menu bar integration for quick access
+- Connect to databases with one click
+- Manage database contexts
+- Edit configuration file
+- Opens connections in new Terminal windows
+
+### Usage
+
+1. Run the application: `cargo run -p dbhub-gui`
+2. Click the menu bar icon
+3. Select Connect > [Environment] > [Database]
+4. A new Terminal window opens with the database CLI
+
+### Packaging
+
+```bash
+cd gui
+cargo tauri build
+```
+
+This creates a `.dmg` installer in `gui/src-tauri/target/release/bundle/dmg/`.
+
 ## Configuration File
 
 The configuration file is stored at `~/.dbhub/config.yml` with the following format:
