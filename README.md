@@ -34,15 +34,48 @@ DocumentDB, Doris, and Redis databases.
 
 ### Pre-compiled Binaries
 
-You can download pre-compiled binaries for Windows, macOS, and Linux from
-the [releases page](https://github.com/yeqown/dbhub/releases).
+Download pre-compiled binaries for Windows, macOS, and Linux from the [releases page](https://github.com/yeqown/dbhub/releases).
+
+### Using Homebrew (macOS)
+
+```bash
+# Install CLI
+brew install dbhub
+
+# Install GUI
+brew install --cask dbhub
+```
 
 ### From Source
 
-```shell
+#### Install CLI
+
+```bash
+# Using cargo-binstall (faster, pre-compiled binary)
 cargo binstall dbhub
-# or 
-cargo install dbhub 
+
+# Or compile from source
+cargo install dbhub
+
+# Or using Makefile
+make build
+make install  # Installs to /usr/local/bin (requires sudo)
+```
+
+#### Install GUI (macOS)
+
+```bash
+# Clone and build
+git clone https://github.com/yeqown/dbhub.git
+cd dbhub
+
+# Build and install GUI to ~/Applications
+make install-gui
+
+# Or build manually
+cargo build --release -p dbhub-gui
+make package-gui
+cp -R gui/DBHub.app ~/Applications/
 ```
 
 ## Usage
@@ -93,41 +126,137 @@ dbhub context --filter-db-type=mysql
 
 ## GUI (macOS)
 
-DB Hub now includes a macOS menu bar GUI for quick access to your database connections.
+DB Hub includes a native macOS menu bar GUI for quick access to your database connections.
 
-### Building the GUI
+![GUI Preview](./docs/gui-preview.png)
+
+### Installation
+
+#### From Release
+
+Download the latest `.dmg` from the [releases page](https://github.com/yeqown/dbhub/releases) and drag DBHub to Applications.
+
+#### From Source
 
 ```bash
-# Build GUI application
-cargo build -p dbhub-gui
+# Clone the repository
+git clone https://github.com/yeqown/dbhub.git
+cd dbhub
 
-# Run GUI
-cargo run -p dbhub-gui
+# Build and install
+make install-gui
+```
+
+This builds the release version and installs it to `~/Applications/DBHub.app`.
+
+#### Manual Build
+
+```bash
+# Build the GUI binary
+cargo build --release -p dbhub-gui
+
+# Create .app bundle
+make package-gui
+
+# Install to ~/Applications
+cp -R gui/DBHub.app ~/Applications/
 ```
 
 ### Features
 
-- Menu bar integration for quick access
-- Connect to databases with one click
-- Manage database contexts
-- Edit configuration file
-- Opens connections in new Terminal windows
+- **Menu Bar Integration**: Quick access from system menu bar
+- **Connect Menu**: Browse connections by environment (Production, Staging, Development, etc.)
+- **Config Menu**: Quick access to edit configuration files directly
+- **Multi-File Config**: Support for multiple configuration files via `DBHUB_CONFIG` environment variable
+- **One-Click Connect**: Opens database CLI in new Terminal window
+- **System Editor Integration**: Click config file to open in your default editor
 
 ### Usage
 
-1. Run the application: `cargo run -p dbhub-gui`
-2. Click the menu bar icon
-3. Select Connect > [Environment] > [Database]
-4. A new Terminal window opens with the database CLI
+#### Using the GUI
 
-### Packaging
+1. **Launch DBHub**: Open DBHub from Applications or run `open ~/Applications/DBHub.app`
+2. **System Tray Icon**: Look for the DBHub icon in your menu bar (top right)
+3. **Connect to Database**:
+   - Click the DBHub icon
+   - Navigate to **Connect** → [Environment] → [Database Alias]
+   - A new Terminal window opens with the database CLI ready
+4. **Edit Configuration**:
+   - Click the DBHub icon
+   - Navigate to **Config** → [Config File]
+   - The file opens in your system default editor
+
+#### Multi-File Configuration
+
+To use multiple configuration files:
 
 ```bash
-cd gui
-cargo tauri build
+# Set the DBHUB_CONFIG environment variable
+export DBHUB_CONFIG=~/.dbhub/config.yml:~/.dbhub/production.yml:~/.dbhub/staging.yml
+
+# Or set it in your shell profile (~/.zshrc or ~/.bashrc)
+echo 'export DBHUB_CONFIG=~/.dbhub/config.yml:~/.dbhub/production.yml' >> ~/.zshrc
+source ~/.zshrc
+
+# Restart DBHub GUI to see all config files in the Config menu
 ```
 
-This creates a `.dmg` installer in `gui/src-tauri/target/release/bundle/dmg/`.
+#### Keyboard Shortcuts
+
+- **Quit**: Right-click menu bar icon → Quit
+- **Refresh**: Restart DBHub to reload configuration files
+
+### Development
+
+#### Running in Development Mode
+
+```bash
+cargo run -p dbhub-gui
+```
+
+#### Building for Release
+
+```bash
+# Package the .app bundle
+make package-gui
+
+# Or rebuild the icon (if you modified gui/icons/dbhub.png)
+make icon
+make package-gui
+```
+
+#### Installation Locations
+
+- **User Applications**: `~/Applications/DBHub.app` (default, no sudo required)
+- **System Applications**: `/Applications/DBHub.app` (requires sudo)
+
+To install system-wide:
+```bash
+sudo cp -R gui/DBHub.app /Applications/
+```
+
+### Updating
+
+To update to the latest version:
+
+```bash
+cd /path/to/dbhub
+git pull
+make install-gui
+```
+
+### Uninstalling
+
+```bash
+# Quit the app first
+pkill DBHub
+
+# Remove the app bundle
+rm -rf ~/Applications/DBHub.app
+
+# Optionally remove configuration
+# rm -rf ~/.dbhub
+```
 
 ## Configuration File
 
