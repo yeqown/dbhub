@@ -1,10 +1,16 @@
-.PHONY: install install-gui
+.PHONY: install install-gui package-gui
 install:
 	cargo build --release --target aarch64-apple-darwin
 	sudo cp target/aarch64-apple-darwin/release/dbhub /usr/local/bin/dbhub
 
+package-gui:
+	cargo build --release -p dbhub-gui
+	@cd gui && bash ../scripts/build-app.sh
+
 install-gui:
-	cd gui && cargo tauri build
+	cargo build --release -p dbhub-gui
+	@cd gui && bash ../scripts/build-app.sh
+	@cp -R gui/DBHub.app ~/Applications/ && echo "✅ Installed to ~/Applications/DBHub.app"
 
 .PHONY: build build-gui test clean
 build:

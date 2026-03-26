@@ -11,3 +11,4 @@ Cargo.lock
 
 # Claude Code Superpower
 docs/superpowers
+*.app/
