@@ -1,34 +1,29 @@
-[workspace]
-members = ["core", "cli", "gui"]
-resolver = "2"
-default-members = ["cli"]
-
-[workspace.package]
+[package]
+name = "dbhub"
 version = "1.4.0"
-edition = "2021"
+edition = "2024"
 authors = ["yeqown@gmail.com"]
-license = "MIT"
-description = "A CLI tool to manage your multi-environment database configurations"
+description = """A CLI tool to manage your multi-environment database configurations, and
+easily connect to them. Now it supports MySQL, Redis, Redis Sentinel, MongoDB, Memcached database
+and you can easily add a custom db-type by write a lua scripts.
+"""
 repository = "https://github.com/yeqown/dbhub"
+license = "MIT"
 keywords = ["cli", "database", "lua"]
 categories = ["command-line-utilities"]
 
-[workspace.dependencies]
-# Shared dependencies for all members
+[dependencies]
+clap = { version = "4.4", features = ["derive"] }
+clap_complete = "4.4"
 serde = { version = "1.0", features = ["derive"] }
 serde_yaml = "0.9"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
-color-eyre = "0.6"
-dirs = "6.0.0"
-clap = { version = "4.4", features = ["derive"] }
-clap_complete = "4.4"
 shell-words = "1.1.0"
 which = "8.0.0"
-console = "0.15"
+color-eyre = "0.6"
+dirs = "6.0.0"
 regex = "1.10.4"
+console = "0.15"
 mlua = { version = "0.10.5", features = ["lua54", "vendored"] }
 rust-embed = { version = "8.7.2", features = ["debug-embed"] }
-
-# GUI-specific dependencies
-tauri = { version = "1.5", features = ["api-all"] }
