@@ -2,8 +2,8 @@
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
-    "devPath": "../gui/src-ui",
-    "distDir": "../gui/src-ui",
+    "devPath": "src-ui",
+    "distDir": "src-ui",
     "withGlobalTauri": true
   },
   "package": {
@@ -26,21 +26,26 @@
         "all": false,
         "close": true,
         "hide": true,
-        "show": true
+        "show": true,
+        "create": true
       }
     },
     "bundle": {
       "active": true,
-      "targets": "all",
+      "targets": ["dmg"],
       "identifier": "com.dbhub.app",
       "icon": []
     },
     "security": {
-      "csp": null
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline';"
     },
     "updater": {
       "active": false
     },
-    "windows": []
+    "windows": [{
+      "title": "DB Hub",
+      "label": "main",
+      "hidden": true
+    }]
   }
 }

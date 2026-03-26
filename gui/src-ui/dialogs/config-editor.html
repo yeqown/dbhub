@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Edit Config</title>
+    <link rel="stylesheet" href="../styles/common.css">
+    <link rel="stylesheet" href="../styles/dialogs.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Edit Config</h1>
+            <div class="header-actions">
+                <button id="save-btn" class="btn-primary">Save</button>
+                <button id="cancel-btn" class="btn-secondary">Cancel</button>
+            </div>
+        </header>
+
+        <div class="config-editor">
+            <div class="section">
+                <h2>Databases</h2>
+                <div id="databases-list"></div>
+                <button id="add-database-btn" class="btn-small" style="margin-top: 10px;">Add Database</button>
+            </div>
+
+            <div class="section">
+                <h2>Templates</h2>
+                <div id="templates-list"></div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="config-editor.js"></script>
+</body>
+</html>
