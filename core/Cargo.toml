@@ -1,0 +1,21 @@
+[package]
+name = "dbhub-core"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Core library for DB Hub - shared between CLI and GUI"
+
+[dependencies]
+serde = { workspace = true }
+serde_yaml = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+color-eyre = { workspace = true }
+dirs = { workspace = true }
+regex = { workspace = true }
+console = { workspace = true }
+mlua = { workspace = true }
+rust-embed = { workspace = true }
+which = { workspace = true }
+shell-words = { workspace = true }
