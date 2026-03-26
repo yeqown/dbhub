@@ -45,7 +45,7 @@
     "windows": [{
       "title": "DB Hub",
       "label": "main",
-      "hidden": true
+      "visible": false
     }]
   }
 }
