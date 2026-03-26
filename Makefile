@@ -1,7 +1,10 @@
-.PHONY: install install-gui package-gui
+.PHONY: install install-gui package-gui icon
 install:
 	cargo build --release --target aarch64-apple-darwin
 	sudo cp target/aarch64-apple-darwin/release/dbhub /usr/local/bin/dbhub
+
+icon:
+	@bash scripts/create-icon.sh
 
 package-gui:
 	cargo build --release -p dbhub-gui
