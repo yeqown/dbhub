@@ -1,4 +1,4 @@
-use dbhub_core::{Config, Database, config};
+use dbhub_core::{config, Config, Database};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -73,7 +73,7 @@ pub async fn connect(alias: String, runtime_args: Option<String>) -> Result<(), 
         .get(&alias)
         .ok_or_else(|| format!("Database not found: {}", alias))?;
 
-    let db = config
+    let _db = config
         .get_database_by_index(db_index)
         .ok_or_else(|| format!("Database not found: {}", alias))?;
 
@@ -146,7 +146,6 @@ pub async fn delete_database(alias: String) -> Result<(), String> {
 fn save_config(config: &Config) -> Result<(), String> {
     use std::fs;
     use std::io::Write;
-    use std::path::Path;
 
     // Get config path - default to ~/.dbhub/config.yml
     let home = dirs::home_dir().ok_or("Cannot determine home directory")?;

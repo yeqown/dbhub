@@ -4,24 +4,47 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-DB Hub is a Rust CLI tool for managing multi-environment database connections. It supports MySQL, MongoDB, Redis, Redis-Sentinel, and Memcached databases through a Lua-based extensibility model.
+DB Hub is a Rust tool for managing multi-environment database connections with both CLI and macOS menu bar GUI interfaces. It supports MySQL, MongoDB, Redis, Redis-Sentinel, and Memcached databases through a Lua-based extensibility model.
 
 **Core architecture**: The tool parses DSN templates to extract connection variables, then uses Lua scripts to generate database-specific CLI commands (e.g., `mysqlsh`, `mongosh`, `redis-cli`).
+
+**Project structure**: Workspace architecture with three components:
+- **CLI** (`dbhub`): Command-line interface for terminal users
+- **GUI** (`dbhub-gui`): macOS menu bar application for quick access
+- **Core** (`dbhub-core`): Shared library containing business logic
 
 ## Build Commands
 
 ```bash
-# Development build
+# Development build (all workspace members)
 cargo build
+
+# Development build (specific package)
+cargo build -p dbhub-cli
+cargo build -p dbhub-gui
 
 # Release build (for current platform)
 cargo build --release
 
-# Install to /usr/local/bin (macOS only)
+# Build CLI only
+make build
+
+# Build GUI only
+make build-gui
+
+# Install CLI to /usr/local/bin (macOS only)
 make install
 
-# Run tests (inline with modules)
+# Build and package GUI app (macOS .app bundle)
+make install-gui
+
+# Run tests (all workspace members)
+make test
 cargo test
+
+# Clean build artifacts
+make clean
+cargo clean
 
 # Publish to crates.io
 cargo publish --dry-run  # test first
@@ -30,14 +53,36 @@ cargo publish
 
 ## Code Architecture
 
-### Module Structure
+### Workspace Structure
 
-- **main.rs**: Entry point, CLI parsing, command routing
-- **cli.rs**: CLI command definitions, completion handling, fuzzy alias matching
+This project uses a Cargo workspace with three members:
+
+- **core/**: Shared business logic library (`dbhub-core`)
+- **cli/**: CLI application (`dbhub`)
+- **gui/**: Tauri-based GUI application (`dbhub-gui`)
+
+### Core Library Structure
+
+- **lib.rs**: Public API exports and module declarations
+- **cli.rs**: CLI command definitions and completion handling
 - **config.rs**: Configuration loading/validation, alias indexing, connection listing
 - **tools.rs**: Database connection logic, Lua script execution
 - **template.rs**: DSN template parsing and variable extraction (token-based)
 - **embedded.rs**: Embedded resources (configs/, scripts/) using rust-embed
+
+### CLI Application
+
+- **main.rs**: Entry point, CLI parsing, command routing
+- Uses `dbhub-core` library for all business logic
+
+### GUI Application
+
+- **main.rs**: Tauri application entry point
+- **commands.rs**: Tauri command handlers (get_connections, connect, add_database, etc.)
+- **src-ui/**: Frontend resources (HTML, CSS, JavaScript)
+  - **index.html**: Main page (hidden by default, menu bar only)
+  - **dialogs/**: Context manager and config editor dialogs
+  - **styles/**: Common CSS for UI elements
 
 ### Key Data Flow
 
@@ -83,6 +128,36 @@ Each database type has a corresponding Lua script in `scripts/`:
 - Uses `clap_complete` for zsh, bash, fish, PowerShell
 - Custom completion suggestions via hidden `CompletionSuggestions` command
 - Alias completion for the `connect` subcommand
+
+### GUI Architecture
+
+The GUI application uses Tauri 1.5 with the following components:
+
+**Backend (Rust)**:
+- **commands.rs**: Tauri command handlers that bridge frontend to core library
+  - `get_connections()`: Returns databases grouped by environment
+  - `connect(alias, runtime_args)`: Opens Terminal window and executes connection
+  - `add_database()`, `update_database()`, `delete_database()`: Context management
+  - `get_config()`, `save_config_dto()`: Full YAML config editing
+- Uses `dbhub-core` library for all business logic (same as CLI)
+- Opens Terminal via `osascript` on macOS
+
+**Frontend (HTML/CSS/JavaScript)**:
+- **Menu Bar**: macOS menu bar integration with Connect/Manage/Edit Config/Quit
+- **Dialogs**: Modal windows for context management and config editing
+- **Styling**: Clean, minimal design without emoji icons
+- Uses `invoke()` to call Tauri commands from JavaScript
+
+**Data Flow**:
+1. User clicks menu item → JavaScript invokes Tauri command
+2. Tauri command handler in Rust processes request using `dbhub-core`
+3. Result returned to frontend as JSON
+4. Frontend updates UI accordingly
+
+**Terminal Integration**:
+- Uses `osascript -e 'tell application "Terminal" to do script "command"'`
+- Opens new Terminal window for each connection
+- Supports runtime arguments (e.g., `-- --db=test`)
 
 ## Development Guidelines
 
