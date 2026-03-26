@@ -4,9 +4,14 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "GUI application for DB Hub"
+description = "MacOS menu bar GUI for DB Hub"
+
+[build-dependencies]
+tauri-build = { version = "1.5", features = [] }
 
 [dependencies]
+tauri = { version = "1.5", features = ["dialog-confirm", "dialog-open", "shell-open", "window-close", "window-hide", "window-show"] }
 dbhub-core = { path = "../core" }
-tauri = { workspace = true }
-tracing = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
