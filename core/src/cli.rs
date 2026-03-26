@@ -17,7 +17,7 @@ pub struct Cli {
 }
 
 #[derive(Subcommand)]
-pub(crate) enum Commands {
+pub enum Commands {
     /// Connect to a database using environment and database name
     #[command(alias = "c")]
     Connect {

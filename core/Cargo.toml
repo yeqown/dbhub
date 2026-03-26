@@ -19,3 +19,5 @@ mlua = { workspace = true }
 rust-embed = { workspace = true }
 which = { workspace = true }
 shell-words = { workspace = true }
+clap = { workspace = true }
+clap_complete = { workspace = true }
