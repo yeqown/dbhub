@@ -1,0 +1,15 @@
+[package]
+name = "dbhub-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "CLI application for DB Hub"
+
+[dependencies]
+dbhub-core = { path = "../core" }
+clap = { workspace = true }
+clap_complete = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+color-eyre = { workspace = true }

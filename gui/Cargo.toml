@@ -1,0 +1,12 @@
+[package]
+name = "dbhub-gui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "GUI application for DB Hub"
+
+[dependencies]
+dbhub-core = { path = "../core" }
+tauri = { workspace = true }
+tracing = { workspace = true }
