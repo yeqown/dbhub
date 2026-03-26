@@ -1,15 +1,19 @@
 [package]
-name = "dbhub-cli"
+name = "dbhub"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "CLI application for DB Hub"
+description = """A CLI tool to manage your multi-environment database configurations"""
+
+[[bin]]
+name = "dbhub"
+path = "src/main.rs"
 
 [dependencies]
 dbhub-core = { path = "../core" }
-clap = { workspace = true }
-clap_complete = { workspace = true }
+clap = { version = "4.4", features = ["derive"] }
+clap_complete = "4.4"
+color-eyre = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-color-eyre = { workspace = true }
