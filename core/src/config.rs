@@ -22,6 +22,14 @@ pub enum InitStatus {
     NoValidConfig,
 }
 
+/// Result of checking initialization status
+#[derive(Debug)]
+pub struct InitResult {
+    pub status: InitStatus,
+    pub config_dir: std::path::PathBuf,
+    pub message: Option<String>,
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     // all database configs.
