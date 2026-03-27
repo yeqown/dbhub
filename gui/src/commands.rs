@@ -211,3 +211,23 @@ pub async fn open_config_editor(path: String) -> Result<(), String> {
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn open_repository(url: String) -> Result<(), String> {
+    use std::process::Command;
+
+    // Open URL in default browser
+    if cfg!(target_os = "macos") {
+        Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("Failed to open URL: {}", e))?;
+    } else {
+        Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map_err(|e| format!("Failed to open URL: {}", e))?;
+    }
+
+    Ok(())
+}
