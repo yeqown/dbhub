@@ -207,6 +207,7 @@ fn main() {
             commands::get_config_files,
             commands::open_config_editor,
             commands::open_repository,
+            commands::initialize_config,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

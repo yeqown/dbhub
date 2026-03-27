@@ -209,3 +209,15 @@ pub async fn open_repository(url: String) -> Result<(), String> {
 
     Ok(())
 }
+
+#[tauri::command]
+pub async fn initialize_config() -> Result<String, String> {
+    match dbhub_core::config::generate_default_config() {
+        Ok(()) => Ok("Configuration created successfully".to_string()),
+        Err(e) => {
+            let error_msg = format!("Failed to create configuration: {}", e);
+            eprintln!("{}", error_msg);
+            Err(error_msg)
+        }
+    }
+}
