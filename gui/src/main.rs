@@ -3,7 +3,7 @@
 mod commands;
 
 use tauri::{
-    CustomMenuItem, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
+    CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
     SystemTraySubmenu,
 };
 
@@ -147,6 +147,7 @@ fn handle_open_config(_app: &tauri::AppHandle, path: String) {
 fn main() {
     // Create static menu items
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
+    let about = CustomMenuItem::new("about".to_string(), "About");
 
     // Build connect submenu with environment-grouped connections
     let connect_submenu = build_connect_submenu();
@@ -157,6 +158,8 @@ fn main() {
     let tray_menu = SystemTrayMenu::new()
         .add_submenu(connect_submenu)
         .add_submenu(config_submenu)
+        .add_native_item(SystemTrayMenuItem::Separator)
+        .add_item(about)
         .add_native_item(SystemTrayMenuItem::Separator)
         .add_item(quit);
 
@@ -169,6 +172,24 @@ fn main() {
                 match id.as_str() {
                     "quit" => {
                         std::process::exit(0);
+                    }
+                    "about" => {
+                        if let Some(about_window) = app.get_window("about") {
+                            let _ = about_window.show();
+                            let _ = about_window.set_focus();
+                        } else {
+                            let _ = tauri::WindowBuilder::new(
+                                app,
+                                "about",
+                                tauri::WindowUrl::App("about.html".into())
+                            )
+                            .title("About")
+                            .inner_size(400.0, 320.0)
+                            .resizable(false)
+                            .center()
+                            .always_on_top(true)
+                            .build();
+                        }
                     }
                     id if id.starts_with("connect-") => {
                         let alias = id[8..].to_string(); // Remove "connect-" prefix
