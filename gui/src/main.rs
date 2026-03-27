@@ -4,6 +4,7 @@ mod commands;
 
 use dbhub_core::check_init_status;
 use tauri::{
+    api::dialog::{MessageDialogBuilder, MessageDialogButtons, MessageDialogKind},
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
     SystemTraySubmenu,
 };
@@ -48,8 +49,7 @@ fn build_connect_submenu() -> SystemTraySubmenu {
 
         // Add environment as a simple header item
         let header_text = format!("{} ({})", env, databases.len());
-        let header_item =
-            CustomMenuItem::new(format!("env-header-{env}"), header_text).disabled();
+        let header_item = CustomMenuItem::new(format!("env-header-{env}"), header_text).disabled();
         connect_menu = connect_menu.add_item(header_item);
 
         // Add connections for this environment (just alias, no env prefix)
@@ -145,6 +145,55 @@ fn handle_open_config(_app: &tauri::AppHandle, path: String) {
     });
 }
 
+/// Handle first-run initialization with confirmation dialog
+fn initial_config_file(needs_init: bool) {
+    if !needs_init {
+        return;
+    }
+
+    println!("[GUI-Init] Showing native init dialog...");
+
+    MessageDialogBuilder::new(
+        "Welcome to DB Hub!",
+        "No configuration file found. Would you like to create a default configuration?\n\nConfiguration location: ~/.dbhub/config.yml"
+    )
+    .buttons(MessageDialogButtons::OkCancel)
+    .show(move |confirmed| {
+        if confirmed {
+            println!("[GUI-Init] User confirmed, creating config...");
+            match dbhub_core::config::generate_default_config() {
+                Ok(()) => {
+                    println!("[GUI-Init] ✓ Config created successfully");
+                    let _ = MessageDialogBuilder::new(
+                        "Success",
+                        "Configuration file created successfully!\n\nThe application will now restart to load the new configuration."
+                    )
+                    .show(|_| {
+                        println!("[GUI-Init] Restarting application...");
+                        let exe = std::env::current_exe().unwrap();
+                        std::process::Command::new(exe)
+                            .spawn()
+                            .expect("Failed to restart application");
+                        std::process::exit(0);
+                    });
+                }
+                Err(e) => {
+                    eprintln!("[GUI-Init] ✗ Failed to create config: {}", e);
+                    let error_msg = format!("Failed to create configuration: {}", e);
+                    let _ = MessageDialogBuilder::new("Error", error_msg)
+                        .kind(MessageDialogKind::Error)
+                        .show(|_| {
+                            std::process::exit(1);
+                        });
+                }
+            }
+        } else {
+            println!("[GUI-Init] User cancelled, exiting...");
+            std::process::exit(0);
+        }
+    });
+}
+
 fn main() {
     // Check initialization status before starting GUI
     println!("[GUI-Init] Checking initialization status...");
@@ -155,7 +204,8 @@ fn main() {
         println!("[GUI-Init] Message: {}", msg);
     }
 
-    // If not initialized, we'll handle it in the setup hook with native dialogs
+    // Check if initialization is needed
+    // If the config file is not initialized or has no valid config, prompt the user to create a default config
     let needs_init = init_result.status == dbhub_core::InitStatus::NotInitialized
         || init_result.status == dbhub_core::InitStatus::NoValidConfig;
 
@@ -183,106 +233,43 @@ fn main() {
         .system_tray(system_tray)
         .manage(init_result)
         .setup(move |_app| {
-            // Handle initialization if needed using native macOS dialog
-            if needs_init {
-                println!("[GUI-Init] Showing native init dialog...");
-
-                // Use osascript to show native macOS dialog
-                let script = r#"
-                    tell application "System Events"
-                        set dialogResult to display dialog "No configuration file found. Would you like to create a default configuration?
-
-Configuration location: ~/.dbhub/config.yml" buttons {"Cancel", "Create"} default button "Create" with title "Welcome to DB Hub!"
-                        return button returned of dialogResult
-                    end tell
-                "#;
-
-                let output = std::process::Command::new("osascript")
-                    .arg("-e")
-                    .arg(script)
-                    .output();
-
-                match output {
-                    Ok(result) => {
-                        let response = String::from_utf8_lossy(&result.stdout);
-                        if response.contains("Create") {
-                            println!("[GUI-Init] User confirmed, creating config...");
-                            match dbhub_core::config::generate_default_config() {
-                                Ok(()) => {
-                                    println!("[GUI-Init] ✓ Config created successfully");
-                                    // Show success dialog
-                                    let _ = std::process::Command::new("osascript")
-                                        .arg("-e")
-                                        .arg("tell application \"System Events\" to display dialog \"Configuration file created successfully!\n\nThe application will now restart to load the new configuration.\" buttons \"OK\" with title \"Success\"")
-                                        .status();
-
-                                    // Restart the application to reload menu with new config
-                                    println!("[GUI-Init] Restarting application...");
-                                    // Get current executable path
-                                    let exe = std::env::current_exe().unwrap();
-                                    // Spawn new process
-                                    std::process::Command::new(exe)
-                                        .spawn()
-                                        .expect("Failed to restart application");
-                                    // Exit current process
-                                    std::process::exit(0);
-                                }
-                                Err(e) => {
-                                    eprintln!("[GUI-Init] ✗ Failed to create config: {}", e);
-                                    let error_msg = format!("{}", e).replace('"', "'");
-                                    let _ = std::process::Command::new("osascript")
-                                        .arg("-e")
-                                        .arg(format!("tell application \"System Events\" to display dialog \"Failed to create configuration: {}\" buttons \"OK\" with title \"Error\"", error_msg))
-                                        .status();
-                                    std::process::exit(1);
-                                }
-                            }
-                        } else {
-                            println!("[GUI-Init] User cancelled, exiting...");
-                            std::process::exit(0);
-                        }
-                    }
-                    Err(e) => {
-                        eprintln!("[GUI-Init] Failed to show dialog: {}", e);
-                        std::process::exit(1);
-                    }
-                }
-            }
-
+            initial_config_file(needs_init);
             Ok(())
         })
-        .on_system_tray_event(|app, event| if let SystemTrayEvent::MenuItemClick { id, .. } = event {
-            match id.as_str() {
-                "quit" => {
-                    std::process::exit(0);
-                }
-                "about" => {
-                    if let Some(about_window) = app.get_window("about") {
-                        let _ = about_window.show();
-                        let _ = about_window.set_focus();
-                    } else {
-                        let _ = tauri::WindowBuilder::new(
-                            app,
-                            "about",
-                            tauri::WindowUrl::App("about.html".into())
-                        )
-                        .title("About")
-                        .inner_size(400.0, 320.0)
-                        .resizable(false)
-                        .center()
-                        .always_on_top(true)
-                        .build();
+        .on_system_tray_event(|app, event| {
+            if let SystemTrayEvent::MenuItemClick { id, .. } = event {
+                match id.as_str() {
+                    "quit" => {
+                        std::process::exit(0);
                     }
+                    "about" => {
+                        if let Some(about_window) = app.get_window("about") {
+                            let _ = about_window.show();
+                            let _ = about_window.set_focus();
+                        } else {
+                            let _ = tauri::WindowBuilder::new(
+                                app,
+                                "about",
+                                tauri::WindowUrl::App("about.html".into()),
+                            )
+                            .title("About")
+                            .inner_size(400.0, 320.0)
+                            .resizable(false)
+                            .center()
+                            .always_on_top(true)
+                            .build();
+                        }
+                    }
+                    id if id.starts_with("connect-") => {
+                        let alias = id[8..].to_string(); // Remove "connect-" prefix
+                        handle_connect(app, alias);
+                    }
+                    id if id.starts_with("config-") => {
+                        let path = id[7..].to_string(); // Remove "config-" prefix
+                        handle_open_config(app, path);
+                    }
+                    _ => {}
                 }
-                id if id.starts_with("connect-") => {
-                    let alias = id[8..].to_string(); // Remove "connect-" prefix
-                    handle_connect(app, alias);
-                }
-                id if id.starts_with("config-") => {
-                    let path = id[7..].to_string(); // Remove "config-" prefix
-                    handle_open_config(app, path);
-                }
-                _ => {}
             }
         })
         .invoke_handler(tauri::generate_handler![
