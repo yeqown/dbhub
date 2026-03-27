@@ -1,8 +1,6 @@
 use dbhub_core::{config, Database};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use std::env;
-use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Clone)]
 pub struct DatabaseDto {
@@ -151,36 +149,17 @@ pub struct ConfigFile {
 
 #[tauri::command]
 pub async fn get_config_files() -> Result<Vec<ConfigFile>, String> {
-    let home = dirs::home_dir().ok_or("Cannot determine home directory")?;
-
-    // Check if DBHUB_CONFIG is set
-    let config_paths = if let Ok(config_env) = env::var("DBHUB_CONFIG") {
-        // Split by colon (Unix) or semicolon (Windows)
-        #[cfg(target_os = "windows")]
-        let separator = ";";
-        #[cfg(not(target_os = "windows"))]
-        let separator = ":";
-
-        config_env
-            .split(separator)
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect::<Vec<_>>()
-    } else {
-        // Default: ~/.dbhub/config.yml
-        vec![home.join(".dbhub").join("config.yml").to_string_lossy().to_string()]
-    };
+    let config_paths = dbhub_core::get_config_paths();
 
     let config_files: Vec<ConfigFile> = config_paths
         .iter()
         .map(|path| {
-            let path_obj = PathBuf::from(path);
-            let name = path_obj
+            let name = path
                 .file_name()
                 .map(|n| n.to_string_lossy().to_string())
-                .unwrap_or_else(|| path.clone());
+                .unwrap_or_else(|| path.to_string_lossy().to_string());
             ConfigFile {
-                path: path.clone(),
+                path: path.to_string_lossy().to_string(),
                 name,
             }
         })

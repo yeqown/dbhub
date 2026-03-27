@@ -5,5 +5,5 @@ pub mod template;
 pub mod tools;
 
 // Re-export commonly used types
-pub use config::{Config, Database, Template, Filter, ListOptions};
+pub use config::{Config, Database, Template, Filter, ListOptions, get_config_paths};
 pub use template::{TemplateToken, parse_variables, analyze};
