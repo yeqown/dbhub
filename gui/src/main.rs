@@ -213,6 +213,7 @@ fn main() {
             commands::open_config_editor,
             commands::open_repository,
             commands::initialize_config,
+            commands::get_init_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

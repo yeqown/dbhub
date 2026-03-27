@@ -12,7 +12,7 @@ use std::{
 use tracing::{debug, error, info, warn};
 
 /// Initialization status for configuration directory
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub enum InitStatus {
     /// Config directory exists with at least one valid config file
     AlreadyExists,
@@ -23,7 +23,7 @@ pub enum InitStatus {
 }
 
 /// Result of checking initialization status
-#[derive(Debug)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InitResult {
     pub status: InitStatus,
     pub config_dir: std::path::PathBuf,

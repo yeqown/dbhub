@@ -1,4 +1,4 @@
-use dbhub_core::{config, Database};
+use dbhub_core::{config, Database, InitResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -220,4 +220,9 @@ pub async fn initialize_config() -> Result<String, String> {
             Err(error_msg)
         }
     }
+}
+
+#[tauri::command]
+pub async fn get_init_status(init_result: tauri::State<'_, InitResult>) -> Result<InitResult, String> {
+    Ok(init_result.inner().clone())
 }
