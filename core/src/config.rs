@@ -11,6 +11,16 @@ use std::{
 
 use tracing::{debug, error, info, warn};
 
+/// Initialization status for configuration directory
+#[derive(Debug, PartialEq, Clone)]
+pub enum InitStatus {
+    /// Config directory exists with at least one valid config file
+    AlreadyExists,
+    /// Config directory does not exist
+    NotInitialized,
+    /// Config directory exists but contains no valid config files
+    NoValidConfig,
+}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
