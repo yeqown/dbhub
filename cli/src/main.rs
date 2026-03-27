@@ -22,6 +22,29 @@ fn main() -> Result<()> {
 
     // tracing_subscriber::fmt::init();
 
+    // Check and initialize configuration
+    let init_result = dbhub_core::check_init_status();
+    match init_result.status {
+        dbhub_core::InitStatus::AlreadyExists => {
+            tracing::info!("Configuration exists: {:?}", init_result.config_dir);
+        }
+        dbhub_core::InitStatus::NotInitialized | dbhub_core::InitStatus::NoValidConfig => {
+            tracing::info!("Configuration not initialized, creating default configuration...");
+            match dbhub_core::config::generate_default_config() {
+                Ok(()) => {
+                    println!("✓ Default configuration created: {:?}",
+                        init_result.config_dir.join("config.yml"));
+                    println!("Hint: Run 'dbhub context' to list database connections");
+                }
+                Err(e) => {
+                    tracing::error!("Failed to create default configuration: {}", e);
+                    tracing::error!("Please check file system permissions or create config manually");
+                    std::process::exit(1);
+                }
+            }
+        }
+    };
+
     let cli = cli::Cli::parse();
 
     // load config from a file
