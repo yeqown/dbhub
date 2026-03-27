@@ -32,7 +32,7 @@ databases:
       version: "8.0.32"
   - alias: my-local-mongo
     db_type: mongo
-    dsn: "mongodb://user:password@localhost:27017/db"
+    dsn: "mongodb://user:password@localhost:27017/db?"
     env: local
     description: "The local mongo database for quickly testing dbhub CLI."
     annotations:
