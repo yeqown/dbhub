@@ -31,16 +31,38 @@
 
 ### 预编译二进制文件
 
-你可以从 [releases 页面](https://github.com/yeqown/dbhub/releases) 下载预编译的二进制文件，支持 Windows、macOS 和 Linux。
+从 [releases 页面](https://github.com/yeqown/dbhub/releases) 下载预编译的二进制文件，支持 Windows、macOS 和 Linux。
 
 ### 从源代码构建
 
-使用 cargo binstall/install 直接安装
+#### 安装 CLI
 
-```shell
+```bash
+# 使用 cargo-binstall (更快，预编译二进制)
 cargo binstall dbhub
-# or 
-cargo install dbhub 
+
+# 或从源码编译
+cargo install dbhub
+
+# 或使用 Makefile
+make build
+make install  # 安装到 /usr/local/bin (需要 sudo)
+```
+
+#### 安装 GUI (macOS)
+
+```bash
+# 克隆并构建
+git clone https://github.com/yeqown/dbhub.git
+cd dbhub
+
+# 构建并安装 GUI 到 ~/Applications
+make install-gui
+
+# 或手动构建
+cargo build --release -p dbhub-gui
+make package-gui
+cp -R gui/DBHub.app ~/Applications/
 ```
 
 ## 使用方法

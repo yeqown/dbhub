@@ -36,16 +36,6 @@ DocumentDB, Doris, and Redis databases.
 
 Download pre-compiled binaries for Windows, macOS, and Linux from the [releases page](https://github.com/yeqown/dbhub/releases).
 
-### Using Homebrew (macOS)
-
-```bash
-# Install CLI
-brew install dbhub
-
-# Install GUI
-brew install --cask dbhub
-```
-
 ### From Source
 
 #### Install CLI
