@@ -2,6 +2,7 @@
 
 mod commands;
 
+use dbhub_core::{InitResult, check_init_status};
 use tauri::{
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
     SystemTraySubmenu,
@@ -145,6 +146,9 @@ fn handle_open_config(_app: &tauri::AppHandle, path: String) {
 }
 
 fn main() {
+    // Check initialization status before starting GUI
+    let init_result = check_init_status();
+
     // Create static menu items
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
     let about = CustomMenuItem::new("about".to_string(), "About");
@@ -167,6 +171,7 @@ fn main() {
 
     tauri::Builder::default()
         .system_tray(system_tray)
+        .manage(init_result)
         .on_system_tray_event(|app, event| if let SystemTrayEvent::MenuItemClick { id, .. } = event {
             match id.as_str() {
                 "quit" => {
@@ -207,6 +212,8 @@ fn main() {
             commands::get_config_files,
             commands::open_config_editor,
             commands::open_repository,
+            commands::initialize_config,
+            commands::get_init_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

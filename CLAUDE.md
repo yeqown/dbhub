@@ -101,6 +101,29 @@ This project uses a Cargo workspace with three members:
 - **Alias resolution**: In-memory HashMap for O(1) lookup
 - **Environments**: Group databases by `env` field for filtering
 
+### Automatic Initialization
+
+Both CLI and GUI automatically initialize configuration when needed:
+
+**CLI**:
+- Checks on startup if `~/.dbhub/` directory exists
+- If missing or contains no valid configs, creates default config automatically
+- Shows success message: "✓ Default configuration created: ~/.dbhub/config.yml"
+- Exits with code 1 on failure (permission issues, etc.)
+
+**GUI**:
+- Checks on startup if `~/.dbhub/` directory exists
+- If missing or contains no valid configs, shows confirmation dialog
+- User can confirm to create config or cancel to exit
+- Shows success alert on creation
+- Closes application on error or user cancellation
+
+**Behavior**:
+- Consistent with Lua script lazy-loading (auto-copy on first use)
+- Never overwrites existing config files
+- Fully backward compatible with existing installations
+- Uses embedded sample config from `configs/sample.yml`
+
 ### Template Variable System
 
 The `template.rs` module implements a token-based parser:

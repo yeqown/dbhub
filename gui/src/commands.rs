@@ -1,4 +1,4 @@
-use dbhub_core::{config, Database};
+use dbhub_core::{config, Database, InitResult};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -208,4 +208,21 @@ pub async fn open_repository(url: String) -> Result<(), String> {
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub async fn initialize_config() -> Result<String, String> {
+    match dbhub_core::config::generate_default_config() {
+        Ok(()) => Ok("Configuration created successfully".to_string()),
+        Err(e) => {
+            let error_msg = format!("Failed to create configuration: {}", e);
+            eprintln!("{}", error_msg);
+            Err(error_msg)
+        }
+    }
+}
+
+#[tauri::command]
+pub async fn get_init_status(init_result: tauri::State<'_, InitResult>) -> Result<InitResult, String> {
+    Ok(init_result.inner().clone())
 }
