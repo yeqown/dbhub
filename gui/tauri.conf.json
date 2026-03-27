@@ -2,8 +2,8 @@
   "build": {
     "beforeDevCommand": "",
     "beforeBuildCommand": "",
-    "devPath": "src-ui",
-    "distDir": "src-ui",
+    "devPath": "public",
+    "distDir": "public",
     "withGlobalTauri": true
   },
   "package": {
@@ -19,7 +19,9 @@
       },
       "dialog": {
         "all": false,
+        "ask": true,
         "confirm": true,
+        "message": true,
         "open": true
       },
       "window": {

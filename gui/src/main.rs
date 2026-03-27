@@ -2,7 +2,7 @@
 
 mod commands;
 
-use dbhub_core::{InitResult, check_init_status};
+use dbhub_core::check_init_status;
 use tauri::{
     CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
     SystemTraySubmenu,
@@ -147,7 +147,17 @@ fn handle_open_config(_app: &tauri::AppHandle, path: String) {
 
 fn main() {
     // Check initialization status before starting GUI
+    println!("[GUI-Init] Checking initialization status...");
     let init_result = check_init_status();
+    println!("[GUI-Init] Init status: {:?}", init_result.status);
+    println!("[GUI-Init] Config dir: {:?}", init_result.config_dir);
+    if let Some(ref msg) = init_result.message {
+        println!("[GUI-Init] Message: {}", msg);
+    }
+
+    // If not initialized, we'll handle it in the setup hook with native dialogs
+    let needs_init = init_result.status == dbhub_core::InitStatus::NotInitialized
+        || init_result.status == dbhub_core::InitStatus::NoValidConfig;
 
     // Create static menu items
     let quit = CustomMenuItem::new("quit".to_string(), "Quit");
@@ -172,6 +182,75 @@ fn main() {
     tauri::Builder::default()
         .system_tray(system_tray)
         .manage(init_result)
+        .setup(move |_app| {
+            // Handle initialization if needed using native macOS dialog
+            if needs_init {
+                println!("[GUI-Init] Showing native init dialog...");
+
+                // Use osascript to show native macOS dialog
+                let script = r#"
+                    tell application "System Events"
+                        set dialogResult to display dialog "No configuration file found. Would you like to create a default configuration?
+
+Configuration location: ~/.dbhub/config.yml" buttons {"Cancel", "Create"} default button "Create" with title "Welcome to DB Hub!"
+                        return button returned of dialogResult
+                    end tell
+                "#;
+
+                let output = std::process::Command::new("osascript")
+                    .arg("-e")
+                    .arg(script)
+                    .output();
+
+                match output {
+                    Ok(result) => {
+                        let response = String::from_utf8_lossy(&result.stdout);
+                        if response.contains("Create") {
+                            println!("[GUI-Init] User confirmed, creating config...");
+                            match dbhub_core::config::generate_default_config() {
+                                Ok(()) => {
+                                    println!("[GUI-Init] ✓ Config created successfully");
+                                    // Show success dialog
+                                    let _ = std::process::Command::new("osascript")
+                                        .arg("-e")
+                                        .arg("tell application \"System Events\" to display dialog \"Configuration file created successfully!\n\nThe application will now restart to load the new configuration.\" buttons \"OK\" with title \"Success\"")
+                                        .status();
+
+                                    // Restart the application to reload menu with new config
+                                    println!("[GUI-Init] Restarting application...");
+                                    // Get current executable path
+                                    let exe = std::env::current_exe().unwrap();
+                                    // Spawn new process
+                                    std::process::Command::new(exe)
+                                        .spawn()
+                                        .expect("Failed to restart application");
+                                    // Exit current process
+                                    std::process::exit(0);
+                                }
+                                Err(e) => {
+                                    eprintln!("[GUI-Init] ✗ Failed to create config: {}", e);
+                                    let error_msg = format!("{}", e).replace('"', "'");
+                                    let _ = std::process::Command::new("osascript")
+                                        .arg("-e")
+                                        .arg(format!("tell application \"System Events\" to display dialog \"Failed to create configuration: {}\" buttons \"OK\" with title \"Error\"", error_msg))
+                                        .status();
+                                    std::process::exit(1);
+                                }
+                            }
+                        } else {
+                            println!("[GUI-Init] User cancelled, exiting...");
+                            std::process::exit(0);
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!("[GUI-Init] Failed to show dialog: {}", e);
+                        std::process::exit(1);
+                    }
+                }
+            }
+
+            Ok(())
+        })
         .on_system_tray_event(|app, event| if let SystemTrayEvent::MenuItemClick { id, .. } = event {
             match id.as_str() {
                 "quit" => {
