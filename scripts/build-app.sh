@@ -64,7 +64,7 @@ fi
 
 # Copy resources
 echo "📝 Copying resources..."
-cp -R src-ui "${APP_BUNDLE}/Contents/Resources/"
+cp -R public "${APP_BUNDLE}/Contents/Resources/"
 
 echo ""
 echo "✅ .app bundle created: ${BUILD_DIR}/${APP_BUNDLE}"

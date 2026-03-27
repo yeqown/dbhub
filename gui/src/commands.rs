@@ -126,10 +126,12 @@ pub async fn connect(alias: String, runtime_args: Option<String>) -> Result<(), 
         cmd.push_str(&args);
     }
 
-    // Execute in new Terminal window
+    // Execute in new Terminal window and activate it
     let escaped_cmd = cmd.replace('\\', "\\\\").replace('"', "\\\"");
 
     Command::new("osascript")
+        .arg("-e")
+        .arg("tell application \"Terminal\" to activate")
         .arg("-e")
         .arg(format!(
             "tell application \"Terminal\" to do script \"{escaped_cmd}\""
