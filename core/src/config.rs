@@ -284,6 +284,67 @@ pub fn generate_default_config() -> Result<()> {
     Ok(())
 }
 
+/// Check configuration initialization status
+///
+/// Checks if ~/.dbhub/ directory exists and contains valid config files.
+/// This is a pure inspection function - no files are created or modified.
+///
+/// # Returns
+///
+/// Returns InitResult containing status, config directory path, and optional message.
+pub fn check_init_status() -> InitResult {
+    let config_dir = if let Some(ref home) = dirs::home_dir() {
+        home.join(".dbhub")
+    } else {
+        return InitResult {
+            status: InitStatus::NotInitialized,
+            config_dir: std::path::PathBuf::from("~/.dbhub"),
+            message: Some("Cannot determine home directory".to_string()),
+        };
+    };
+
+    // Check if directory exists
+    if !config_dir.exists() {
+        return InitResult {
+            status: InitStatus::NotInitialized,
+            config_dir: config_dir.clone(),
+            message: Some(format!("Config directory does not exist: {:?}", config_dir)),
+        };
+    }
+
+    // Check for valid config files
+    let config_files = scan_config_directory(&config_dir);
+    if config_files.is_empty() {
+        return InitResult {
+            status: InitStatus::NoValidConfig,
+            config_dir: config_dir.clone(),
+            message: Some(format!("Config directory exists but contains no valid config files: {:?}", config_dir)),
+        };
+    }
+
+    InitResult {
+        status: InitStatus::AlreadyExists,
+        config_dir,
+        message: None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_check_init_status_returns_result() {
+        let result = check_init_status();
+        match result.status {
+            InitStatus::AlreadyExists | InitStatus::NotInitialized | InitStatus::NoValidConfig => {
+                // Test passes if we get a valid status
+            }
+        }
+        assert!(result.config_dir.ends_with(".dbhub"));
+    }
+}
+
 pub fn loads() -> Result<Config> {
     let config_paths = get_config_paths();
     if config_paths.is_empty() {
