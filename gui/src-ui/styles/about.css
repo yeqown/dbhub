@@ -49,8 +49,9 @@ body {
 
 .info-item {
     display: flex;
-    flex-direction: column;
-    gap: 2px;
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
 }
 
 .info-item.full-width {
