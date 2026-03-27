@@ -47,7 +47,7 @@ cat > "${APP_BUNDLE}/Contents/Info.plist" << 'EOF'
     <key>NSHighResolutionCapable</key>
     <true/>
     <key>CFBundleIconFile</key>
-    <string>dbhub</string>
+    <string>appicon</string>
     <key>LSUIElement</key>
     <true/>
 </dict>
@@ -56,10 +56,10 @@ EOF
 
 # Copy icon
 echo "📝 Copying icon..."
-if [ -f "icons/dbhub.icns" ]; then
-    cp icons/dbhub.icns "${APP_BUNDLE}/Contents/Resources/"
+if [ -f "icons/appicon.icns" ]; then
+    cp icons/appicon.icns "${APP_BUNDLE}/Contents/Resources/"
 else
-    echo "⚠️  Warning: icons/dbhub.icns not found, skipping icon"
+    echo "⚠️  Warning: icons/appicon.icns not found, skipping icon"
 fi
 
 # Copy resources

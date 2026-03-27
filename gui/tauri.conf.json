@@ -51,7 +51,7 @@
       }
     ],
     "systemTray": {
-      "iconPath": "icons/dbhub.png",
+      "iconPath": "icons/menubaricon.png",
       "iconAsTemplate": true
     }
   }

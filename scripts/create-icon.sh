@@ -5,9 +5,9 @@ set -e
 # Usage: ./scripts/create-icon.sh
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-ICON_SRC="${PROJECT_ROOT}/gui/icons/dbhub.png"
+ICON_SRC="${PROJECT_ROOT}/gui/icons/appicon.png"
 ICONSET="/tmp/dbhub.iconset"
-ICNS_OUTPUT="${PROJECT_ROOT}/gui/icons/dbhub.icns"
+ICNS_OUTPUT="${PROJECT_ROOT}/gui/icons/appicon.icns"
 
 echo "🎨 Creating macOS icon from ${ICON_SRC}..."
 
