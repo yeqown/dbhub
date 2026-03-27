@@ -86,22 +86,141 @@ const DBHUB_CONFIG_ENV: &str = "DBHUB_CONFIG";
 const DEFAULT_CONFIG_PATH: &str = "~/.dbhub/config.yml";
 const SAMPLE_CONFIG_FILE_PATH: &str = "sample.yml";
 
+/// Get all configuration file paths.
+///
+/// Priority:
+/// 1. If `DBHUB_CONFIG` environment variable is set, use it (for backward compatibility)
+/// 2. Otherwise, auto-scan `~/.dbhub/` directory for all .yml/.yaml files
+///
+/// Returns a vector of configuration file paths sorted alphabetically.
 pub fn get_config_paths() -> Vec<path::PathBuf> {
-    match std::env::var(DBHUB_CONFIG_ENV) {
-        Ok(paths) => {
-            paths
-                .split(':')
-                .map(|path| -> path::PathBuf {
-                    deal_config_path(path).unwrap()
-                })
-                .collect()
+    // Priority 1: Check DBHUB_CONFIG environment variable (backward compatibility)
+    if let Ok(paths) = std::env::var(DBHUB_CONFIG_ENV) {
+        info!("Using DBHUB_CONFIG environment variable: {}", paths);
+        return paths
+            .split(':')
+            .filter_map(deal_config_path)
+            .collect();
+    }
+
+    // Priority 2: Auto-scan ~/.dbhub/ directory
+    info!("No DBHUB_CONFIG environment variable found, scanning ~/.dbhub/ directory");
+
+    let config_dir = if let Some(ref home) = dirs::home_dir() {
+        home.join(".dbhub")
+    } else {
+        warn!("Cannot determine home directory");
+        return vec![];
+    };
+
+    // If config directory doesn't exist, return default path
+    if !config_dir.exists() {
+        info!("Config directory does not exist: {:?}", config_dir);
+        return deal_config_path(DEFAULT_CONFIG_PATH).into_iter().collect();
+    }
+
+    // Scan for all .yml and .yaml files
+    let mut config_files = scan_config_directory(&config_dir);
+
+    // Sort files alphabetically for consistent ordering
+    config_files.sort();
+
+    if config_files.is_empty() {
+        info!("No config files found in {:?}, using default: {:?}", config_dir, DEFAULT_CONFIG_PATH);
+        deal_config_path(DEFAULT_CONFIG_PATH).into_iter().collect()
+    } else {
+        info!("Found {} config file(s) in {:?}: {:?}", config_files.len(), config_dir, config_files);
+        config_files
+    }
+}
+
+/// Scan the configuration directory for valid config files.
+///
+/// Returns a vector of paths to .yml/.yaml files, excluding:
+/// - Backup files (files ending with ~, .bak, .backup)
+/// - Temporary files (files starting with . or #)
+/// - Hidden files (files starting with .)
+/// - Files that cannot be parsed as valid YAML
+fn scan_config_directory(config_dir: &path::PathBuf) -> Vec<path::PathBuf> {
+    let mut config_files = Vec::new();
+
+    // Read directory entries
+    let entries = match std::fs::read_dir(config_dir) {
+        Ok(entries) => entries,
+        Err(e) => {
+            warn!("Failed to read config directory: {:?}", e);
+            return Vec::new();
         }
-        Err(_) => {
-            info!("No DBHUB_CONFIG environment variable found, use the default config file path: {:?}", DEFAULT_CONFIG_PATH);
-            match deal_config_path(DEFAULT_CONFIG_PATH) {
-                Some(path) => vec![path],
-                None => vec![],
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+
+        // Skip directories
+        if path.is_dir() {
+            continue;
+        }
+
+        // Get file name
+        let file_name = match path.file_name() {
+            Some(name) => name.to_string_lossy().to_string(),
+            None => continue,
+        };
+
+        // Skip hidden files (starting with .)
+        if file_name.starts_with('.') {
+            debug!("Skipping hidden file: {}", file_name);
+            continue;
+        }
+
+        // Skip temporary files (starting with # or ending with ~)
+        if file_name.starts_with('#') || file_name.ends_with('~') {
+            debug!("Skipping temporary file: {}", file_name);
+            continue;
+        }
+
+        // Skip backup files
+        if file_name.ends_with(".bak") || file_name.ends_with(".backup") {
+            debug!("Skipping backup file: {}", file_name);
+            continue;
+        }
+
+        // Only accept .yml and .yaml files
+        if !file_name.ends_with(".yml") && !file_name.ends_with(".yaml") {
+            debug!("Skipping non-YAML file: {}", file_name);
+            continue;
+        }
+
+        // Validate that the file is a valid YAML file
+        if !is_valid_config_file(&path) {
+            warn!("Skipping invalid config file: {}", file_name);
+            continue;
+        }
+
+        debug!("Found valid config file: {:?}", path);
+        config_files.push(path);
+    }
+
+    config_files
+}
+
+/// Check if a file is a valid configuration file by attempting to parse it.
+///
+/// Returns true if the file can be parsed as a valid Config, false otherwise.
+fn is_valid_config_file(path: &path::Path) -> bool {
+    match std::fs::read_to_string(path) {
+        Ok(content) => {
+            match serde_yaml::from_str::<Config>(&content) {
+                Ok(_) => true,
+                Err(e) => {
+                    debug!("Failed to parse config file {:?}: {}", path, e);
+                    false
+                }
             }
+        }
+        Err(e) => {
+            debug!("Failed to read config file {:?}: {}", path, e);
+            false
         }
     }
 }
@@ -218,7 +337,7 @@ impl Database {
         // return a HashMap of variables.
         // E.g. { "user": "root", "password": "root", "host": "localhost", "port": "3306", "database": "test" }
         let mut variables = HashMap::new();
-        let vars = crate::template::parse_variables(&dsn_template, &self.dsn);
+        let vars = crate::template::parse_variables(dsn_template, &self.dsn);
         if let Some(vars) = vars {
             for (key, value) in vars {
                 variables.insert(key, value);
@@ -288,11 +407,11 @@ struct ListFormat {
 
 impl ListFormat {
     pub fn from_args(args: &ContextArgs) -> Self {
-        let mut format = ListFormat::default();
-        // format.with_desc = args.get_flag("with-desc");
-        format.with_dsn = args.with_dsn;
-        format.with_annotations = args.with_annotations;
-        format
+        ListFormat {
+            with_dsn: args.with_dsn,
+            with_annotations: args.with_annotations,
+            ..Default::default()
+        }
     }
 }
 
@@ -323,10 +442,10 @@ pub struct ListOptions {
 
 impl ListOptions {
     pub fn from_args(args: &ContextArgs) -> Self {
-        let mut options = ListOptions::default();
-        options.filter = Filter::from_args(args);
-        options.format = ListFormat::from_args(args);
-        options
+        ListOptions {
+            filter: Filter::from_args(args),
+            format: ListFormat::from_args(args),
+        }
     }
 }
 

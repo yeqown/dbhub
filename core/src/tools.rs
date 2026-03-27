@@ -40,7 +40,7 @@ pub fn connect(db: &Database, cfg: &Config, passthrough_args: &[String]) -> Resu
             &annotations,
             &last_output_lines,
             counter,
-            &passthrough_args,
+            passthrough_args,
         )?;
         info!(
             "#{} Running command: \n\n\t💻 -> {}\n",

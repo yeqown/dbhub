@@ -47,10 +47,10 @@ pub struct FilterParams {
 
 #[tauri::command]
 pub async fn get_connections(filter: Option<FilterParams>) -> Result<HashMap<String, Vec<DatabaseDto>>, String> {
-    println!("[DEBUG] get_connections called with filter: {:?}", filter);
+    println!("[DEBUG] get_connections called with filter: {filter:?}");
 
     let config = config::loads().map_err(|e| {
-        eprintln!("[ERROR] Failed to load config: {}", e);
+        eprintln!("[ERROR] Failed to load config: {e}");
         e.to_string()
     })?;
 
@@ -113,14 +113,14 @@ pub async fn connect(alias: String, runtime_args: Option<String>) -> Result<(), 
     let db_index = config
         .aliases
         .get(&alias)
-        .ok_or_else(|| format!("Database not found: {}", alias))?;
+        .ok_or_else(|| format!("Database not found: {alias}"))?;
 
     let _db = config
         .get_database_by_index(db_index)
-        .ok_or_else(|| format!("Database not found: {}", alias))?;
+        .ok_or_else(|| format!("Database not found: {alias}"))?;
 
     // Build dbhub CLI command
-    let mut cmd = format!("dbhub connect {}", alias);
+    let mut cmd = format!("dbhub connect {alias}");
     if let Some(args) = runtime_args {
         cmd.push_str(" -- ");
         cmd.push_str(&args);
@@ -132,11 +132,10 @@ pub async fn connect(alias: String, runtime_args: Option<String>) -> Result<(), 
     Command::new("osascript")
         .arg("-e")
         .arg(format!(
-            "tell application \"Terminal\" to do script \"{}\"",
-            escaped_cmd
+            "tell application \"Terminal\" to do script \"{escaped_cmd}\""
         ))
         .spawn()
-        .map_err(|e| format!("Failed to open terminal: {}", e))?;
+        .map_err(|e| format!("Failed to open terminal: {e}"))?;
 
     Ok(())
 }
@@ -179,13 +178,13 @@ pub async fn open_config_editor(path: String) -> Result<(), String> {
         Command::new("open")
             .args(["-t", &path])
             .spawn()
-            .map_err(|e| format!("Failed to open editor: {}", e))?;
+            .map_err(|e| format!("Failed to open editor: {e}"))?;
     } else {
         // On Linux, try xdg-open
         Command::new("xdg-open")
             .arg(&path)
             .spawn()
-            .map_err(|e| format!("Failed to open editor: {}", e))?;
+            .map_err(|e| format!("Failed to open editor: {e}"))?;
     }
 
     Ok(())
@@ -200,12 +199,12 @@ pub async fn open_repository(url: String) -> Result<(), String> {
         Command::new("open")
             .arg(&url)
             .spawn()
-            .map_err(|e| format!("Failed to open URL: {}", e))?;
+            .map_err(|e| format!("Failed to open URL: {e}"))?;
     } else {
         Command::new("xdg-open")
             .arg(&url)
             .spawn()
-            .map_err(|e| format!("Failed to open URL: {}", e))?;
+            .map_err(|e| format!("Failed to open URL: {e}"))?;
     }
 
     Ok(())

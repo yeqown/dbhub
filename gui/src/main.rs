@@ -18,7 +18,7 @@ fn build_connect_submenu() -> SystemTraySubmenu {
     let connections = match connections_result {
         Ok(Ok(conns)) => conns,
         Ok(Err(e)) => {
-            eprintln!("Failed to load connections: {}", e);
+            eprintln!("Failed to load connections: {e}");
             let error_item = CustomMenuItem::new("connect-error", "Error loading connections");
             return SystemTraySubmenu::new("Connect", SystemTrayMenu::new().add_item(error_item));
         }
@@ -48,7 +48,7 @@ fn build_connect_submenu() -> SystemTraySubmenu {
         // Add environment as a simple header item
         let header_text = format!("{} ({})", env, databases.len());
         let header_item =
-            CustomMenuItem::new(format!("env-header-{}", env), header_text).disabled();
+            CustomMenuItem::new(format!("env-header-{env}"), header_text).disabled();
         connect_menu = connect_menu.add_item(header_item);
 
         // Add connections for this environment (just alias, no env prefix)
@@ -79,7 +79,7 @@ fn build_config_submenu() -> SystemTraySubmenu {
     let config_files = match config_files_result {
         Ok(Ok(files)) => files,
         Ok(Err(e)) => {
-            eprintln!("Failed to load config files: {}", e);
+            eprintln!("Failed to load config files: {e}");
             let error_item = CustomMenuItem::new("config-error", "Error loading config");
             return SystemTraySubmenu::new("Config", SystemTrayMenu::new().add_item(error_item));
         }
@@ -113,16 +113,16 @@ fn build_config_submenu() -> SystemTraySubmenu {
 
 // Helper function to handle async connect call
 fn handle_connect(_app: &tauri::AppHandle, alias: String) {
-    println!("[DEBUG] Connect clicked for alias: {}", alias);
+    println!("[DEBUG] Connect clicked for alias: {alias}");
     println!("[DEBUG] Starting async connect task...");
     tauri::async_runtime::spawn(async move {
-        println!("[DEBUG] Connect task running for: {}", alias);
+        println!("[DEBUG] Connect task running for: {alias}");
         match commands::connect(alias.clone(), None).await {
             Ok(_) => {
-                println!("[DEBUG] Successfully opened Terminal for {}", alias);
+                println!("[DEBUG] Successfully opened Terminal for {alias}");
             }
             Err(e) => {
-                eprintln!("[ERROR] Failed to connect to {}: {}", alias, e);
+                eprintln!("[ERROR] Failed to connect to {alias}: {e}");
                 eprintln!("[ERROR] This might mean 'dbhub' CLI is not installed or not in PATH");
             }
         }
@@ -131,14 +131,14 @@ fn handle_connect(_app: &tauri::AppHandle, alias: String) {
 
 // Helper function to handle async config file opening
 fn handle_open_config(_app: &tauri::AppHandle, path: String) {
-    println!("[DEBUG] Open config clicked for path: {}", path);
+    println!("[DEBUG] Open config clicked for path: {path}");
     tauri::async_runtime::spawn(async move {
         match commands::open_config_editor(path.clone()).await {
             Ok(_) => {
-                println!("[DEBUG] Successfully opened editor for {}", path);
+                println!("[DEBUG] Successfully opened editor for {path}");
             }
             Err(e) => {
-                eprintln!("[ERROR] Failed to open config file {}: {}", path, e);
+                eprintln!("[ERROR] Failed to open config file {path}: {e}");
             }
         }
     });
@@ -167,42 +167,39 @@ fn main() {
 
     tauri::Builder::default()
         .system_tray(system_tray)
-        .on_system_tray_event(|app, event| match event {
-            SystemTrayEvent::MenuItemClick { id, .. } => {
-                match id.as_str() {
-                    "quit" => {
-                        std::process::exit(0);
-                    }
-                    "about" => {
-                        if let Some(about_window) = app.get_window("about") {
-                            let _ = about_window.show();
-                            let _ = about_window.set_focus();
-                        } else {
-                            let _ = tauri::WindowBuilder::new(
-                                app,
-                                "about",
-                                tauri::WindowUrl::App("about.html".into())
-                            )
-                            .title("About")
-                            .inner_size(400.0, 320.0)
-                            .resizable(false)
-                            .center()
-                            .always_on_top(true)
-                            .build();
-                        }
-                    }
-                    id if id.starts_with("connect-") => {
-                        let alias = id[8..].to_string(); // Remove "connect-" prefix
-                        handle_connect(app, alias);
-                    }
-                    id if id.starts_with("config-") => {
-                        let path = id[7..].to_string(); // Remove "config-" prefix
-                        handle_open_config(app, path);
-                    }
-                    _ => {}
+        .on_system_tray_event(|app, event| if let SystemTrayEvent::MenuItemClick { id, .. } = event {
+            match id.as_str() {
+                "quit" => {
+                    std::process::exit(0);
                 }
+                "about" => {
+                    if let Some(about_window) = app.get_window("about") {
+                        let _ = about_window.show();
+                        let _ = about_window.set_focus();
+                    } else {
+                        let _ = tauri::WindowBuilder::new(
+                            app,
+                            "about",
+                            tauri::WindowUrl::App("about.html".into())
+                        )
+                        .title("About")
+                        .inner_size(400.0, 320.0)
+                        .resizable(false)
+                        .center()
+                        .always_on_top(true)
+                        .build();
+                    }
+                }
+                id if id.starts_with("connect-") => {
+                    let alias = id[8..].to_string(); // Remove "connect-" prefix
+                    handle_connect(app, alias);
+                }
+                id if id.starts_with("config-") => {
+                    let path = id[7..].to_string(); // Remove "config-" prefix
+                    handle_open_config(app, path);
+                }
+                _ => {}
             }
-            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_connections,
