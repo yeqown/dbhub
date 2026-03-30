@@ -4,7 +4,7 @@ pub mod embedded;
 pub mod template;
 
 // Re-export commonly used types for external consumers (CLI, GUI)
-pub use config::{Config, Database, Template, InitStatus, InitResult};
+pub use config::{Config, Database, Template, InitStatus, InitResult, get_config_dir};
 pub use config::{get_config_paths, check_init_status, generate_default_config, loads};
 
 // Re-export connection functions

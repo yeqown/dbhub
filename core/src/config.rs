@@ -106,6 +106,14 @@ impl Config {
 const DBHUB_CONFIG_ENV: &str = "DBHUB_CONFIG";
 const DEFAULT_CONFIG_PATH: &str = "~/.dbhub/config.yml";
 const SAMPLE_CONFIG_FILE_PATH: &str = "sample.yml";
+const CONFIG_DIR_NAME: &str = ".dbhub";
+
+/// Get the config directory path (`~/.dbhub/`).
+///
+/// Returns `None` if the home directory cannot be determined.
+pub fn get_config_dir() -> Option<path::PathBuf> {
+    dirs::home_dir().map(|home| home.join(CONFIG_DIR_NAME))
+}
 
 /// Get all configuration file paths.
 ///
@@ -127,11 +135,12 @@ pub fn get_config_paths() -> Vec<path::PathBuf> {
     // Priority 2: Auto-scan ~/.dbhub/ directory
     info!("No DBHUB_CONFIG environment variable found, scanning ~/.dbhub/ directory");
 
-    let config_dir = if let Some(ref home) = dirs::home_dir() {
-        home.join(".dbhub")
-    } else {
-        warn!("Cannot determine home directory");
-        return vec![];
+    let config_dir = match get_config_dir() {
+        Some(dir) => dir,
+        None => {
+            warn!("Cannot determine home directory");
+            return vec![];
+        }
     };
 
     // If config directory doesn't exist, return default path
@@ -260,14 +269,15 @@ pub fn generate_default_config() -> Result<()> {
 ///
 /// This is a pure inspection function - no files are created or modified.
 pub fn check_init_status() -> InitResult {
-    let config_dir = if let Some(ref home) = dirs::home_dir() {
-        home.join(".dbhub")
-    } else {
-        return InitResult {
-            status: InitStatus::NotInitialized,
-            config_dir: std::path::PathBuf::from("~/.dbhub"),
-            message: Some("Cannot determine home directory".to_string()),
-        };
+    let config_dir = match get_config_dir() {
+        Some(dir) => dir,
+        None => {
+            return InitResult {
+                status: InitStatus::NotInitialized,
+                config_dir: std::path::PathBuf::from("~/.dbhub"),
+                message: Some("Cannot determine home directory".to_string()),
+            };
+        }
     };
 
     if !config_dir.exists() {

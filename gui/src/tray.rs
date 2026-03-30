@@ -34,6 +34,7 @@ fn handle_menu_event(app: &tauri::AppHandle, event: tauri::menu::MenuEvent) {
     match event.id().as_ref() {
         "quit" => app.exit(0),
         "about" => show_about_window(app),
+        "config-manage" => show_manage_window(app),
         id if id.starts_with("connect-") => {
             let alias = id[8..].to_string();
             handle_connect(app, alias);
@@ -82,4 +83,24 @@ fn handle_open_config(_app: &tauri::AppHandle, path: String) {
             Err(e) => eprintln!("[ERROR] Failed to open config {path}: {e}"),
         }
     });
+}
+
+fn show_manage_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window("manage") {
+        let _ = window.show();
+        let _ = window.set_focus();
+        return;
+    }
+
+    let _ = WebviewWindowBuilder::new(
+        app,
+        "manage",
+        WebviewUrl::App("manage.html".into()),
+    )
+    .title("Manage Configurations")
+    .inner_size(900.0, 600.0)
+    .min_inner_size(700.0, 400.0)
+    .resizable(true)
+    .center()
+    .build();
 }

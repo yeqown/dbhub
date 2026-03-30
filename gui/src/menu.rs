@@ -106,6 +106,13 @@ fn build_config_submenu(
     let config_files = load_config_files()?;
     let mut builder = SubmenuBuilder::new(app, "Config");
 
+    // Add Manage menu item at the top
+    let manage_item = MenuItem::with_id(app, "config-manage", "Manage...", true, None::<&str>)?;
+    builder = builder.item(&manage_item);
+
+    // Add separator
+    builder = builder.item(&PredefinedMenuItem::separator(app)?);
+
     if config_files.is_empty() {
         builder = builder.item(&MenuItem::with_id(
             app,

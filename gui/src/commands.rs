@@ -46,7 +46,9 @@ pub struct FilterParams {
 }
 
 #[tauri::command]
-pub async fn get_connections(filter: Option<FilterParams>) -> Result<HashMap<String, Vec<DatabaseDto>>, String> {
+pub async fn get_connections(
+    filter: Option<FilterParams>,
+) -> Result<HashMap<String, Vec<DatabaseDto>>, String> {
     println!("[DEBUG] get_connections called with filter: {filter:?}");
 
     let config = config::loads().map_err(|e| {
@@ -54,7 +56,10 @@ pub async fn get_connections(filter: Option<FilterParams>) -> Result<HashMap<Str
         e.to_string()
     })?;
 
-    println!("[DEBUG] Loaded {} databases from config", config.databases.len());
+    println!(
+        "[DEBUG] Loaded {} databases from config",
+        config.databases.len()
+    );
     let mut grouped: HashMap<String, Vec<DatabaseDto>> = HashMap::new();
 
     // Collect all databases first
@@ -80,11 +85,15 @@ pub async fn get_connections(filter: Option<FilterParams>) -> Result<HashMap<Str
             // Search filter
             if let Some(ref search_term) = filter_params.search {
                 let search_lower = search_term.to_lowercase();
-                let search_in = format!("{}{}{}{}{}",
-                    db.alias, db.db_type, db.env,
+                let search_in = format!(
+                    "{}{}{}{}{}",
+                    db.alias,
+                    db.db_type,
+                    db.env,
                     db.description.as_ref().unwrap_or(&String::new()),
                     db.dsn
-                ).to_lowercase();
+                )
+                .to_lowercase();
 
                 if !search_in.contains(&search_lower) {
                     return false;
@@ -225,6 +234,62 @@ pub async fn initialize_config() -> Result<String, String> {
 }
 
 #[tauri::command]
-pub async fn get_init_status(init_result: tauri::State<'_, InitResult>) -> Result<InitResult, String> {
+pub async fn get_init_status(
+    init_result: tauri::State<'_, InitResult>,
+) -> Result<InitResult, String> {
     Ok(init_result.inner().clone())
+}
+
+#[tauri::command]
+pub async fn read_config_file(path: String) -> Result<String, String> {
+    std::fs::read_to_string(&path).map_err(|e| format!("Failed to read config file: {e}"))
+}
+
+#[tauri::command]
+pub async fn save_config_file(path: String, content: String) -> Result<(), String> {
+    std::fs::write(&path, &content).map_err(|e| format!("Failed to save config file: {e}"))
+}
+
+#[tauri::command]
+pub async fn create_config_file(name: String) -> Result<String, String> {
+    let config_dir = dbhub_core::get_config_dir()
+        .ok_or_else(|| "Cannot determine config directory".to_string())?;
+
+    // Ensure the directory exists
+    if !config_dir.exists() {
+        std::fs::create_dir_all(&config_dir)
+            .map_err(|e| format!("Failed to create config directory: {e}"))?;
+    }
+
+    // Ensure the name ends with .yml
+    let filename = if name.ends_with(".yml") || name.ends_with(".yaml") {
+        name
+    } else {
+        format!("{}.yml", name)
+    };
+
+    let file_path = config_dir.join(&filename);
+
+    // Check if file already exists
+    if file_path.exists() {
+        return Err(format!("Config file already exists: {}", filename));
+    }
+
+    // Create empty config file with basic structure
+    let default_content = "databases: ";
+    std::fs::write(&file_path, default_content)
+        .map_err(|e| format!("Failed to create config file: {e}"))?;
+
+    Ok(file_path.to_string_lossy().to_string())
+}
+
+#[tauri::command]
+pub async fn delete_config_file(path: String) -> Result<(), String> {
+    // Safety check: don't delete if it's the only config file
+    let config_paths = dbhub_core::get_config_paths();
+    if config_paths.len() <= 1 {
+        return Err("Cannot delete the last config file".to_string());
+    }
+
+    std::fs::remove_file(&path).map_err(|e| format!("Failed to delete config file: {e}"))
 }

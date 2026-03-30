@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Manage Configurations</title>
+    <link rel="stylesheet" href="styles/common.css">
+    <link rel="stylesheet" href="styles/macos.css">
+    <link rel="stylesheet" href="styles/manage.css">
+    <!-- CodeMirror for YAML syntax highlighting -->
+    <link rel="stylesheet" href="lib/codemirror.min.css">
+</head>
+<body>
+    <div class="manage-container">
+        <!-- Toolbar -->
+        <div class="toolbar">
+            <div class="toolbar-left">
+                <span id="current-config-path" class="config-path">Current Config Path: -</span>
+            </div>
+            <div class="toolbar-right">
+                <button id="btn-add" class="macos-btn macos-btn-secondary macos-btn-small">
+                    <span class="btn-icon">+</span> Add Config
+                </button>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar: File List -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <span>Config Files</span>
+                </div>
+                <div id="file-list" class="file-list">
+                    <!-- File items will be populated here -->
+                </div>
+            </div>
+
+            <!-- Editor Area -->
+            <div class="editor-area">
+                <div id="editor-placeholder" class="editor-placeholder">
+                    <p>Select a config file to edit</p>
+                </div>
+                <div id="editor-container" class="editor-container" style="display: none;">
+                    <div class="editor-header">
+                        <span id="current-file-name" class="file-name"></span>
+                        <div class="editor-actions">
+                            <button id="btn-cancel" class="macos-btn macos-btn-secondary macos-btn-small" disabled>
+                                Cancel
+                            </button>
+                            <button id="btn-save" class="macos-btn macos-btn-primary macos-btn-small" disabled>
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                    <div id="editor" class="editor-wrapper"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Status Bar -->
+        <div class="status-bar">
+            <span id="status-message" class="status-message">Ready</span>
+            <span id="last-saved" class="last-saved"></span>
+        </div>
+    </div>
+
+    <!-- Add Config Modal -->
+    <div id="add-modal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content macos-card">
+            <h3 class="modal-title">New Config File</h3>
+            <div class="macos-form-group">
+                <label class="macos-form-label" for="new-file-name">File name:</label>
+                <input type="text" id="new-file-name" class="macos-input" placeholder="e.g., production">
+            </div>
+            <div class="modal-actions">
+                <button id="modal-cancel" class="macos-btn macos-btn-secondary">Cancel</button>
+                <button id="modal-create" class="macos-btn macos-btn-primary">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content macos-card">
+            <h3 id="confirm-title" class="modal-title"></h3>
+            <p id="confirm-message" class="confirm-message"></p>
+            <div class="modal-actions">
+                <button id="confirm-cancel" class="macos-btn macos-btn-secondary">Cancel</button>
+                <button id="confirm-ok" class="macos-btn macos-btn-danger">Delete</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Discard Modal -->
+    <div id="discard-modal" class="modal">
+        <div class="modal-backdrop"></div>
+        <div class="modal-content macos-card">
+            <h3 class="modal-title">Unsaved Changes</h3>
+            <p class="confirm-message">You have unsaved changes. Do you want to discard them?</p>
+            <div class="modal-actions">
+                <button id="discard-cancel" class="macos-btn macos-btn-primary">Stay</button>
+                <button id="discard-ok" class="macos-btn macos-btn-danger">Discard</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- CodeMirror for YAML syntax highlighting -->
+    <script src="lib/codemirror.min.js"></script>
+    <script src="lib/yaml.min.js"></script>
+    <script src="lib/closebrackets.min.js"></script>
+    <script src="manage.js"></script>
+</body>
+</html>
