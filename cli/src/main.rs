@@ -1,7 +1,14 @@
 use clap::Parser;
 use color_eyre::eyre::Result;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
-use dbhub_core::{cli, config};
+
+mod cli;
+mod display;
+mod r#match;
+
+use cli::{Cli, Commands};
+use display::ListOptions;
+use r#match::find_similar_alias;
 
 fn main() -> Result<()> {
     color_eyre::install()?;
@@ -9,18 +16,16 @@ fn main() -> Result<()> {
     Registry::default()
         .with(
             EnvFilter::builder()
-                .with_default_directive(tracing::Level::WARN.into()) // Set the default log level to INFO
-                .from_env_lossy() // Load log level from environment variables
+                .with_default_directive(tracing::Level::WARN.into())
+                .from_env_lossy(),
         )
         .with(
             tracing_subscriber::fmt::layer()
                 .with_target(true)
                 .with_level(true)
-                .without_time()
+                .without_time(),
         )
         .init();
-
-    // tracing_subscriber::fmt::init();
 
     // Check and initialize configuration
     let init_result = dbhub_core::check_init_status();
@@ -30,10 +35,12 @@ fn main() -> Result<()> {
         }
         dbhub_core::InitStatus::NotInitialized | dbhub_core::InitStatus::NoValidConfig => {
             tracing::info!("Configuration not initialized, creating default configuration...");
-            match dbhub_core::config::generate_default_config() {
+            match dbhub_core::generate_default_config() {
                 Ok(()) => {
-                    println!("✓ Default configuration created: {:?}",
-                        init_result.config_dir.join("config.yml"));
+                    println!(
+                        "✓ Default configuration created: {:?}",
+                        init_result.config_dir.join("config.yml")
+                    );
                     println!("Hint: Run 'dbhub context' to list database connections");
                 }
                 Err(e) => {
@@ -45,35 +52,69 @@ fn main() -> Result<()> {
         }
     };
 
-    let cli = cli::Cli::parse();
+    let cli = Cli::parse();
 
-    // load config from a file
     match cli.command {
-        cli::Commands::Connect { ref alias, passthrough_args: ref script_args } => {
-            let cfg = config::loads()?;
-            cli::handle_connect(&cfg, alias, script_args)?;
+        Commands::Connect {
+            ref alias,
+            passthrough_args: ref script_args,
+        } => {
+            let cfg = dbhub_core::loads()?;
+            handle_connect(&cfg, alias, script_args)?;
         }
-        cli::Commands::Context(args) => {
+        Commands::Context(args) => {
             if args.generate {
-                config::generate_default_config()?;
+                dbhub_core::generate_default_config()?;
                 return Ok(());
             }
 
-            let cfg = config::loads()?;
-            let opts = config::ListOptions::from_args(&args);
-            config::list_connections(&cfg, &opts);
+            let cfg = dbhub_core::loads()?;
+            let opts = ListOptions::from_args(&args);
+            display::list_connections(&cfg, &opts);
         }
-        cli::Commands::Completion { shell } => {
-            // Already handled above
+        Commands::Completion { shell } => {
             cli::handle_completion(shell)?;
-            return Ok(());
         }
-        cli::Commands::CompletionSuggestions { ref suggestion_type } => {
-            let cfg = config::loads()?;
-            cli::handle_completion_suggestions(&cfg, suggestion_type)?;
-            return Ok(());
+        Commands::CompletionSuggestions { ref suggestion_type } => {
+            let cfg = dbhub_core::loads()?;
+            handle_completion_suggestions(&cfg, suggestion_type)?;
         }
     }
 
+    Ok(())
+}
+
+fn handle_connect(
+    cfg: &dbhub_core::Config,
+    alias: &str,
+    passthrough_args: &[String],
+) -> Result<()> {
+    use color_eyre::eyre::eyre;
+
+    let db_index = cfg.aliases.get(alias).ok_or_else(|| {
+        let similar_alias = find_similar_alias(alias, &cfg.aliases.keys().cloned().collect::<Vec<_>>());
+        eyre!("Alias '{}' not found, maybe {}?", alias, similar_alias)
+    })?;
+
+    let db = cfg.get_database_by_index(*db_index).unwrap();
+
+    tracing::debug!("passthrough_args: {:?}", passthrough_args);
+
+    dbhub_core::connect(db, cfg, passthrough_args)
+}
+
+fn handle_completion_suggestions(cfg: &dbhub_core::Config, suggestion_type: &str) -> Result<()> {
+    match suggestion_type {
+        "aliases" => {
+            let mut aliases: Vec<_> = cfg.aliases.keys().cloned().collect();
+            aliases.sort();
+            for alias in aliases {
+                println!("{alias}");
+            }
+        }
+        _ => {
+            // Unknown suggestion type, return empty
+        }
+    }
     Ok(())
 }

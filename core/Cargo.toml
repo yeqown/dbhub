@@ -10,14 +10,13 @@ description = "Core library for DB Hub - shared between CLI and GUI"
 serde = { workspace = true }
 serde_yaml = { workspace = true }
 tracing = { workspace = true }
-tracing-subscriber = { workspace = true }
 color-eyre = { workspace = true }
 dirs = { workspace = true }
 regex = { workspace = true }
-console = { workspace = true }
 mlua = { workspace = true }
 rust-embed = { workspace = true }
 which = { workspace = true }
 shell-words = { workspace = true }
-clap = { workspace = true }
-clap_complete = { workspace = true }
+
+[dev-dependencies]
+# For testing only, if needed

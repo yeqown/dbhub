@@ -116,7 +116,7 @@ pub async fn connect(alias: String, runtime_args: Option<String>) -> Result<(), 
         .ok_or_else(|| format!("Database not found: {alias}"))?;
 
     let _db = config
-        .get_database_by_index(db_index)
+        .get_database_by_index(*db_index)
         .ok_or_else(|| format!("Database not found: {alias}"))?;
 
     // Build dbhub CLI command

@@ -1,9 +1,14 @@
-pub mod cli;
 pub mod config;
+pub mod connection;
 pub mod embedded;
 pub mod template;
-pub mod tools;
 
-// Re-export commonly used types
-pub use config::{Config, Database, Template, Filter, ListOptions, get_config_paths, InitStatus, InitResult, check_init_status};
-pub use template::{TemplateToken, parse_variables, analyze};
+// Re-export commonly used types for external consumers (CLI, GUI)
+pub use config::{Config, Database, Template, InitStatus, InitResult};
+pub use config::{get_config_paths, check_init_status, generate_default_config, loads};
+
+// Re-export connection functions
+pub use connection::{connect, build_connect_command, ConnectCommand};
+
+// Re-export template parsing functions (used by Database::variables)
+pub use template::{parse_variables, analyze, fill_template};

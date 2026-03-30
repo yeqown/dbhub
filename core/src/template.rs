@@ -354,7 +354,38 @@ mod parse_variables_tests {
     }
 }
 
-#[allow(dead_code, unused)]
+/// Fill a template with variables to produce a DSN string.
+///
+/// This is the inverse operation of `parse_variables`:
+/// given a template and a map of variables, produces the final string.
+///
+/// # Arguments
+///
+/// * `template` - The template string with `{variable}` placeholders
+/// * `variables` - A map of variable names to their values
+///
+/// # Returns
+///
+/// Returns `Some(String)` with the filled template. Note that missing variables
+/// will result in empty strings in the output.
+///
+/// # Example
+///
+/// ```
+/// use std::collections::HashMap;
+/// use dbhub_core::template::fill_template;
+///
+/// let template = "mysql://{user}:{password}@{host}:{port}/{database}";
+/// let mut vars = HashMap::new();
+/// vars.insert("user".to_string(), "root".to_string());
+/// vars.insert("password".to_string(), "secret".to_string());
+/// vars.insert("host".to_string(), "localhost".to_string());
+/// vars.insert("port".to_string(), "3306".to_string());
+/// vars.insert("database".to_string(), "test".to_string());
+///
+/// let result = fill_template(template, &vars);
+/// assert_eq!(result, Some("mysql://root:secret@localhost:3306/test".to_string()));
+/// ```
 pub fn fill_template(template: &str, variables: &HashMap<String, String>) -> Option<String> {
     let tokens = analyze(template);
     let mut result = String::new();
