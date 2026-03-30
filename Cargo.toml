@@ -29,6 +29,3 @@ console = "0.15"
 regex = "1.10.4"
 mlua = { version = "0.10.5", features = ["lua54", "vendored"] }
 rust-embed = { version = "8.7.2", features = ["debug-embed"] }
-
-# GUI-specific dependencies
-tauri = { version = "1.5", features = ["api-all"] }

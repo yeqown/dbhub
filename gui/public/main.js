@@ -4,7 +4,7 @@ console.log('[main] DB Hub GUI starting...');
 // Hide main window on startup
 window.addEventListener('DOMContentLoaded', () => {
     console.log('[main] DOMContentLoaded fired');
-    const currentWindow = window.__TAURI__.window.getCurrent();
+    const currentWindow = window.__TAURI__.webviewWindow.getCurrent();
     currentWindow.hide();
     console.log('[main] Window hidden');
 });

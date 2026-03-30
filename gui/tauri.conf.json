@@ -1,50 +1,13 @@
 {
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "DB Hub",
+  "version": "1.4.2",
+  "identifier": "com.dbhub.app",
   "build": {
-    "beforeDevCommand": "",
-    "beforeBuildCommand": "",
-    "devPath": "public",
-    "distDir": "public",
-    "withGlobalTauri": true
+    "frontendDist": "public"
   },
-  "package": {
-    "productName": "DB Hub",
-    "version": "1.4.0"
-  },
-  "tauri": {
-    "allowlist": {
-      "all": false,
-      "shell": {
-        "all": false,
-        "open": true
-      },
-      "dialog": {
-        "all": false,
-        "ask": true,
-        "confirm": true,
-        "message": true,
-        "open": true
-      },
-      "window": {
-        "all": false,
-        "close": true,
-        "hide": true,
-        "show": true,
-        "create": true
-      }
-    },
-    "bundle": {
-      "active": true,
-      "targets": [
-        "dmg"
-      ],
-      "identifier": "com.dbhub.app"
-    },
-    "security": {
-      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' 'unsafe-hashes';"
-    },
-    "updater": {
-      "active": false
-    },
+  "app": {
+    "withGlobalTauri": true,
     "windows": [
       {
         "title": "DB Hub",
@@ -52,9 +15,15 @@
         "visible": false
       }
     ],
-    "systemTray": {
-      "iconPath": "icons/menubaricon.png",
-      "iconAsTemplate": true
+    "security": {
+      "csp": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' 'unsafe-hashes';"
     }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg"],
+    "icon": [
+      "icons/icon.png"
+    ]
   }
 }

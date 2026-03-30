@@ -4,115 +4,28 @@ mod commands;
 
 use dbhub_core::check_init_status;
 use tauri::{
-    api::dialog::{MessageDialogBuilder, MessageDialogButtons, MessageDialogKind},
-    CustomMenuItem, Manager, SystemTray, SystemTrayEvent, SystemTrayMenu, SystemTrayMenuItem,
-    SystemTraySubmenu,
+    image::Image,
+    menu::{IconMenuItemBuilder, Menu, MenuItem, PredefinedMenuItem, SubmenuBuilder},
+    tray::TrayIconBuilder,
+    Manager, WebviewUrl, WebviewWindowBuilder,
 };
+use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
-// Build connect submenu with environment-grouped connections (2 levels only)
-fn build_connect_submenu() -> SystemTraySubmenu {
-    // Try to load connections synchronously
-    let connections_result = std::panic::catch_unwind(|| {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        runtime.block_on(async { commands::get_connections(None).await })
-    });
-
-    let connections = match connections_result {
-        Ok(Ok(conns)) => conns,
-        Ok(Err(e)) => {
-            eprintln!("Failed to load connections: {e}");
-            let error_item = CustomMenuItem::new("connect-error", "Error loading connections");
-            return SystemTraySubmenu::new("Connect", SystemTrayMenu::new().add_item(error_item));
-        }
-        Err(_) => {
-            eprintln!("Panic while loading connections");
-            let error_item = CustomMenuItem::new("connect-error", "Error loading connections");
-            return SystemTraySubmenu::new("Connect", SystemTrayMenu::new().add_item(error_item));
-        }
+/// Get icon for database type
+fn get_db_icon(db_type: &str) -> Option<Image<'static>> {
+    let bytes: &'static [u8] = match db_type.to_lowercase().as_str() {
+        "mysql" => include_bytes!("../icons/mysql.png"),
+        "mongo" | "mongodb" => include_bytes!("../icons/mongodb.png"),
+        "redis" | "redis-sentinel" => include_bytes!("../icons/redis.png"),
+        "memcached" => include_bytes!("../icons/memcached.png"),
+        "doris" => include_bytes!("../icons/doris.png"),
+        "postgres" | "postgresql" => include_bytes!("../icons/postgres.png"),
+        _ => return None,
     };
-
-    if connections.is_empty() {
-        eprintln!("No connections found");
-        let empty_item = CustomMenuItem::new("connect-empty", "No connections configured");
-        return SystemTraySubmenu::new("Connect", SystemTrayMenu::new().add_item(empty_item));
-    }
-
-    println!("Loaded {} connection groups for submenu", connections.len());
-
-    // Create the Connect submenu with all connections
-    let mut connect_menu = SystemTrayMenu::new();
-    let mut environments: Vec<_> = connections.keys().collect();
-    environments.sort();
-
-    for (index, env) in environments.iter().enumerate() {
-        let databases = connections.get(*env).unwrap();
-
-        // Add environment as a simple header item
-        let header_text = format!("{} ({})", env, databases.len());
-        let header_item = CustomMenuItem::new(format!("env-header-{env}"), header_text).disabled();
-        connect_menu = connect_menu.add_item(header_item);
-
-        // Add connections for this environment (just alias, no env prefix)
-        for db in databases {
-            let item_id = format!("connect-{}", db.alias);
-            let display_name = format!("  {}", db.alias);
-            let item = CustomMenuItem::new(item_id, display_name);
-            connect_menu = connect_menu.add_item(item);
-        }
-
-        // Add separator between environments (except last)
-        if index < environments.len() - 1 {
-            connect_menu = connect_menu.add_native_item(SystemTrayMenuItem::Separator);
-        }
-    }
-
-    SystemTraySubmenu::new("Connect", connect_menu)
+    Image::from_bytes(bytes).ok()
 }
 
-// Build config submenu with all config files
-fn build_config_submenu() -> SystemTraySubmenu {
-    // Try to load config files synchronously
-    let config_files_result = std::panic::catch_unwind(|| {
-        let runtime = tokio::runtime::Runtime::new().unwrap();
-        runtime.block_on(async { commands::get_config_files().await })
-    });
-
-    let config_files = match config_files_result {
-        Ok(Ok(files)) => files,
-        Ok(Err(e)) => {
-            eprintln!("Failed to load config files: {e}");
-            let error_item = CustomMenuItem::new("config-error", "Error loading config");
-            return SystemTraySubmenu::new("Config", SystemTrayMenu::new().add_item(error_item));
-        }
-        Err(_) => {
-            eprintln!("Panic while loading config files");
-            let error_item = CustomMenuItem::new("config-error", "Error loading config");
-            return SystemTraySubmenu::new("Config", SystemTrayMenu::new().add_item(error_item));
-        }
-    };
-
-    if config_files.is_empty() {
-        eprintln!("No config files found");
-        let empty_item = CustomMenuItem::new("config-empty", "No config files");
-        return SystemTraySubmenu::new("Config", SystemTrayMenu::new().add_item(empty_item));
-    }
-
-    println!("Loaded {} config files for submenu", config_files.len());
-
-    // Create the Config submenu with all files
-    let mut config_menu = SystemTrayMenu::new();
-
-    for file in &config_files {
-        let item_id = format!("config-{}", file.path);
-        let display_name = &file.name;
-        let item = CustomMenuItem::new(item_id, display_name.clone());
-        config_menu = config_menu.add_item(item);
-    }
-
-    SystemTraySubmenu::new("Config", config_menu)
-}
-
-// Helper function to handle async connect call
+/// Handle async connect call
 fn handle_connect(_app: &tauri::AppHandle, alias: String) {
     println!("[DEBUG] Connect clicked for alias: {alias}");
     println!("[DEBUG] Starting async connect task...");
@@ -130,7 +43,7 @@ fn handle_connect(_app: &tauri::AppHandle, alias: String) {
     });
 }
 
-// Helper function to handle async config file opening
+/// Handle async config file opening
 fn handle_open_config(_app: &tauri::AppHandle, path: String) {
     println!("[DEBUG] Open config clicked for path: {path}");
     tauri::async_runtime::spawn(async move {
@@ -146,52 +59,53 @@ fn handle_open_config(_app: &tauri::AppHandle, path: String) {
 }
 
 /// Handle first-run initialization with confirmation dialog
-fn initial_config_file(needs_init: bool) {
+fn initial_config_file(app: &tauri::AppHandle, needs_init: bool) {
     if !needs_init {
         return;
     }
 
     println!("[GUI-Init] Showing native init dialog...");
 
-    MessageDialogBuilder::new(
-        "Welcome to DB Hub!",
-        "No configuration file found. Would you like to create a default configuration?\n\nConfiguration location: ~/.dbhub/config.yml"
-    )
-    .buttons(MessageDialogButtons::OkCancel)
-    .show(move |confirmed| {
-        if confirmed {
-            println!("[GUI-Init] User confirmed, creating config...");
-            match dbhub_core::config::generate_default_config() {
-                Ok(()) => {
-                    println!("[GUI-Init] ✓ Config created successfully");
-                    let _ = MessageDialogBuilder::new(
-                        "Success",
-                        "Configuration file created successfully!\n\nThe application will now restart to load the new configuration."
-                    )
-                    .show(|_| {
-                        println!("[GUI-Init] Restarting application...");
-                        let exe = std::env::current_exe().unwrap();
-                        std::process::Command::new(exe)
-                            .spawn()
-                            .expect("Failed to restart application");
-                        std::process::exit(0);
-                    });
+    let app_handle = app.clone();
+    app.dialog()
+        .message("No configuration file found. Would you like to create a default configuration?\n\nConfiguration location: ~/.dbhub/config.yml")
+        .title("Welcome to DB Hub!")
+        .buttons(MessageDialogButtons::OkCancel)
+        .show(move |confirmed| {
+            if confirmed {
+                println!("[GUI-Init] User confirmed, creating config...");
+                match dbhub_core::config::generate_default_config() {
+                    Ok(()) => {
+                        println!("[GUI-Init] Config created successfully");
+                        let _ = app_handle.dialog()
+                            .message("Configuration file created successfully!\n\nThe application will now restart to load the new configuration.")
+                            .title("Success")
+                            .show(|_| {
+                                println!("[GUI-Init] Restarting application...");
+                                let exe = std::env::current_exe().unwrap();
+                                std::process::Command::new(exe)
+                                    .spawn()
+                                    .expect("Failed to restart application");
+                                std::process::exit(0);
+                            });
+                    }
+                    Err(e) => {
+                        eprintln!("[GUI-Init] Failed to create config: {}", e);
+                        let error_msg = format!("Failed to create configuration: {}", e);
+                        let _ = app_handle.dialog()
+                            .message(error_msg)
+                            .title("Error")
+                            .kind(MessageDialogKind::Error)
+                            .show(|_| {
+                                std::process::exit(1);
+                            });
+                    }
                 }
-                Err(e) => {
-                    eprintln!("[GUI-Init] ✗ Failed to create config: {}", e);
-                    let error_msg = format!("Failed to create configuration: {}", e);
-                    let _ = MessageDialogBuilder::new("Error", error_msg)
-                        .kind(MessageDialogKind::Error)
-                        .show(|_| {
-                            std::process::exit(1);
-                        });
-                }
+            } else {
+                println!("[GUI-Init] User cancelled, exiting...");
+                std::process::exit(0);
             }
-        } else {
-            println!("[GUI-Init] User cancelled, exiting...");
-            std::process::exit(0);
-        }
-    });
+        });
 }
 
 fn main() {
@@ -205,52 +119,206 @@ fn main() {
     }
 
     // Check if initialization is needed
-    // If the config file is not initialized or has no valid config, prompt the user to create a default config
     let needs_init = init_result.status == dbhub_core::InitStatus::NotInitialized
         || init_result.status == dbhub_core::InitStatus::NoValidConfig;
 
-    // Create static menu items
-    let quit = CustomMenuItem::new("quit".to_string(), "Quit");
-    let about = CustomMenuItem::new("about".to_string(), "About");
-
-    // Build connect submenu with environment-grouped connections
-    let connect_submenu = build_connect_submenu();
-
-    // Build config submenu with config files
-    let config_submenu = build_config_submenu();
-
-    let tray_menu = SystemTrayMenu::new()
-        .add_submenu(connect_submenu)
-        .add_submenu(config_submenu)
-        .add_native_item(SystemTrayMenuItem::Separator)
-        .add_item(about)
-        .add_native_item(SystemTrayMenuItem::Separator)
-        .add_item(quit);
-
-    let system_tray = SystemTray::new().with_menu(tray_menu);
-
     tauri::Builder::default()
-        .system_tray(system_tray)
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_shell::init())
         .manage(init_result)
-        .setup(move |_app| {
-            initial_config_file(needs_init);
-            Ok(())
-        })
-        .on_system_tray_event(|app, event| {
-            if let SystemTrayEvent::MenuItemClick { id, .. } = event {
-                match id.as_str() {
+        .setup(move |app| {
+            // Show init dialog if needed
+            initial_config_file(app.handle(), needs_init);
+
+            // Build static menu items
+            let quit = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let about = MenuItem::with_id(app, "about", "About", true, None::<&str>)?;
+
+            // Build connect submenu
+            let connect_submenu = {
+                // Try to load connections synchronously
+                let connections_result = std::panic::catch_unwind(|| {
+                    let runtime = tokio::runtime::Runtime::new().unwrap();
+                    runtime.block_on(async { commands::get_connections(None).await })
+                });
+
+                let mut builder = SubmenuBuilder::new(app, "Connect");
+
+                match connections_result {
+                    Ok(Ok(connections)) if !connections.is_empty() => {
+                        println!("Loaded {} connection groups for submenu", connections.len());
+                        let mut environments: Vec<_> = connections.keys().collect();
+                        environments.sort();
+
+                        for (index, env) in environments.iter().enumerate() {
+                            let databases = connections.get(*env).unwrap();
+
+                            // Add environment header (disabled item)
+                            let header_text = format!("{} ({})", env, databases.len());
+                            builder = builder.item(&MenuItem::with_id(
+                                app,
+                                &format!("env-header-{env}"),
+                                &header_text,
+                                false,
+                                None::<&str>,
+                            )?);
+
+                            // Add connections with database-type icons
+                            for db in databases {
+                                let item_id = format!("connect-{}", db.alias);
+                                let display_name = db.alias.clone();
+
+                                // Try to create IconMenuItem with database-type icon
+                                if let Some(icon) = get_db_icon(&db.db_type) {
+                                    let icon_item = IconMenuItemBuilder::new(&display_name)
+                                        .id(&item_id)
+                                        .icon(icon)
+                                        .build(app)?;
+                                    builder = builder.item(&icon_item);
+                                } else {
+                                    // Fallback to regular MenuItem
+                                    let item = MenuItem::with_id(
+                                        app,
+                                        &item_id,
+                                        &display_name,
+                                        true,
+                                        None::<&str>,
+                                    )?;
+                                    builder = builder.item(&item);
+                                }
+                            }
+
+                            // Add separator between environments (except last)
+                            if index < environments.len() - 1 {
+                                builder = builder.item(&PredefinedMenuItem::separator(app)?);
+                            }
+                        }
+                    }
+                    Ok(Ok(_)) => {
+                        // No connections
+                        builder = builder.item(&MenuItem::with_id(
+                            app,
+                            "connect-empty",
+                            "No connections configured",
+                            true,
+                            None::<&str>,
+                        )?);
+                    }
+                    Ok(Err(e)) => {
+                        eprintln!("Failed to load connections: {e}");
+                        builder = builder.item(&MenuItem::with_id(
+                            app,
+                            "connect-error",
+                            "Error loading connections",
+                            true,
+                            None::<&str>,
+                        )?);
+                    }
+                    Err(_) => {
+                        eprintln!("Panic while loading connections");
+                        builder = builder.item(&MenuItem::with_id(
+                            app,
+                            "connect-error",
+                            "Error loading connections",
+                            true,
+                            None::<&str>,
+                        )?);
+                    }
+                }
+
+                builder.build()?
+            };
+
+            // Build config submenu
+            let config_submenu = {
+                let config_files_result = std::panic::catch_unwind(|| {
+                    let runtime = tokio::runtime::Runtime::new().unwrap();
+                    runtime.block_on(async { commands::get_config_files().await })
+                });
+
+                let mut builder = SubmenuBuilder::new(app, "Config");
+
+                match config_files_result {
+                    Ok(Ok(config_files)) if !config_files.is_empty() => {
+                        println!("Loaded {} config files for submenu", config_files.len());
+                        for file in &config_files {
+                            let item_id = format!("config-{}", file.path);
+                            let display_name = &file.name;
+                            let item =
+                                MenuItem::with_id(app, &item_id, display_name, true, None::<&str>)?;
+                            builder = builder.item(&item);
+                        }
+                    }
+                    Ok(Ok(_)) => {
+                        builder = builder.item(&MenuItem::with_id(
+                            app,
+                            "config-empty",
+                            "No config files",
+                            true,
+                            None::<&str>,
+                        )?);
+                    }
+                    Ok(Err(e)) => {
+                        eprintln!("Failed to load config files: {e}");
+                        builder = builder.item(&MenuItem::with_id(
+                            app,
+                            "config-error",
+                            "Error loading config",
+                            true,
+                            None::<&str>,
+                        )?);
+                    }
+                    Err(_) => {
+                        eprintln!("Panic while loading config files");
+                        builder = builder.item(&MenuItem::with_id(
+                            app,
+                            "config-error",
+                            "Error loading config",
+                            true,
+                            None::<&str>,
+                        )?);
+                    }
+                }
+
+                builder.build()?
+            };
+
+            // Build main tray menu
+            let tray_menu = Menu::with_items(
+                app,
+                &[
+                    &connect_submenu,
+                    &config_submenu,
+                    &PredefinedMenuItem::separator(app)?,
+                    &about,
+                    &PredefinedMenuItem::separator(app)?,
+                    &quit,
+                ],
+            )?;
+
+            // Create system tray with explicit icon
+            let tray_icon = Image::from_bytes(include_bytes!("../icons/menubaricon.png"))?;
+            let _tray = TrayIconBuilder::new()
+                .icon(tray_icon)
+                .icon_as_template(true)
+                .menu(&tray_menu)
+                .on_tray_icon_event(|tray, _event| {
+                    // When tray icon is clicked, ensure the app is focused
+                    let _ = tray.app_handle().set_activation_policy(tauri::ActivationPolicy::Accessory);
+                })
+                .on_menu_event(|app, event| match event.id().as_ref() {
                     "quit" => {
-                        std::process::exit(0);
+                        app.exit(0);
                     }
                     "about" => {
-                        if let Some(about_window) = app.get_window("about") {
+                        if let Some(about_window) = app.get_webview_window("about") {
                             let _ = about_window.show();
                             let _ = about_window.set_focus();
                         } else {
-                            let _ = tauri::WindowBuilder::new(
+                            let _ = WebviewWindowBuilder::new(
                                 app,
                                 "about",
-                                tauri::WindowUrl::App("about.html".into()),
+                                WebviewUrl::App("about.html".into()),
                             )
                             .title("About")
                             .inner_size(400.0, 320.0)
@@ -261,16 +329,19 @@ fn main() {
                         }
                     }
                     id if id.starts_with("connect-") => {
-                        let alias = id[8..].to_string(); // Remove "connect-" prefix
+                        let alias = id[8..].to_string();
                         handle_connect(app, alias);
                     }
                     id if id.starts_with("config-") => {
-                        let path = id[7..].to_string(); // Remove "config-" prefix
+                        let path = id[7..].to_string();
                         handle_open_config(app, path);
                     }
                     _ => {}
-                }
-            }
+                })
+                .show_menu_on_left_click(true)
+                .build(app)?;
+
+            Ok(())
         })
         .invoke_handler(tauri::generate_handler![
             commands::get_connections,
