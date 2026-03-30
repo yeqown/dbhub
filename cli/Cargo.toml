@@ -11,7 +11,7 @@ name = "dbhub"
 path = "src/main.rs"
 
 [dependencies]
-dbhub-core = { path = "../core" }
+dbhub-core = { version = "1.5.0", path = "../core" }
 clap = { version = "4.4", features = ["derive"] }
 clap_complete = "4.4"
 color-eyre = { workspace = true }
